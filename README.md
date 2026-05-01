@@ -68,9 +68,9 @@ This app is designed as a lightweight presence board for small teams. It is not 
 
 このアプリは、小規模チーム向けの簡易的な在室状況表示ツールです。厳密なアクセス制御、勤怠管理、監査記録を目的としたものではありません。
 
-Access control depends on the Google Apps Script web app deployment settings. If the web app is made accessible to anyone with the URL, anyone who obtains the URL may be able to submit presence updates. For private use, restrict access appropriately in the Apps Script deployment settings.
+Access control depends on the Google Apps Script web app deployment settings. If the web app is made accessible to anyone with the URL, anyone who obtains the URL may be able to submit presence updates.
 
-アクセス制御は、Google Apps Script の Web アプリのデプロイ設定に依存します。「URLを知っている全員」がアクセスできる設定にすると、URLを入手した第三者が在室状況を更新できる可能性があります。非公開で運用する場合は、Apps Script のデプロイ設定でアクセス範囲を適切に制限してください。
+アクセス制御は、Google Apps Script の Web アプリのデプロイ設定に依存します。「URLを知っている全員」がアクセスできる設定にすると、URLを入手した第三者が在室状況を更新できる可能性があります。
 
 Do not include real personal data, private email addresses, production spreadsheet IDs, or deployed web app URLs in public templates or documentation.
 
