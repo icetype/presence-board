@@ -1,14 +1,14 @@
 # Presence Board
 
-A lightweight presence board for labs, offices, and small teams, built with Google Sheets and Google Apps Script.
+A lightweight presence board for labs and small teams, built with Google Sheets and Google Apps Script.
 
-研究室の入口などに共用のタブレットやPCを設置し、メンバーが「名前」と「場所」をタップするだけで、現在の在室状況を記録・表示できるシンプルな在室管理アプリです。Google スプレッドシートをデータベースとして使うため、専用サーバーを用意せずに運用できます。
+研究室の入口などに共用のタブレットやPCを設置し、メンバーが「名前」と「場所」をタップするだけで、在室状況を表示・記録できるシンプルな在室管理アプリです。Google スプレッドシートをデータベースとして使うため、専用サーバーを用意せずに運用できます。
 
 ## Overview / 概要
 
 Presence Board is designed for small teams that want a simple shared presence board rather than a full attendance or access-control system.
 
-主な用途は、研究室・オフィス・小規模チームでの「今どこにいるか」の共有です。名前と場所のマスタを Google スプレッドシートで管理し、記録画面・現在状況・月別ログを Google Apps Script の Web アプリとして提供します。
+主な用途は、研究室や小規模チームでの「今どこにいるか」の共有と記録です。Google スプレッドシートをデータベースとして使い、名前・場所・現在の在室状態・月別ログを管理します。メンバーが操作する記録画面と現在状況の表示画面は、Google Apps Script の Web アプリとして提供されます。
 
 ## Quick Start / クイックスタート
 
