@@ -1,0 +1,2694 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/line-seed-jp@0.0.5/line-seed-jp.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined">
+
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --sub: #6b7280;
+      --line: #e2e8f0;
+      --accent: #4b5563;
+      --accent2: #374151;
+      --ok: #15803d;
+      --danger: #b91c1c;
+      --radius: 20px;
+
+      --presence-location-size: 19px;
+      --presence-members-size: 17px;
+
+      --button-font-size: 22px;
+      --button-min-height: 66px;
+      --button-padding-y: 10px;
+      --button-padding-x: 8px;
+      --button-min-col-width: 120px;
+
+      --press-depth: 6px;
+      --card-rest-shadow: 0 10px 18px rgba(15, 23, 42, 0.08), 0 3px 6px rgba(15, 23, 42, 0.06);
+      --card-press-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.12), 0 0 0 rgba(15, 23, 42, 0);
+
+      --selected-chip-scale: 1.32;
+      --selected-chip-scale-pop: 1.40;
+      --selected-chip-rest-shift-x: calc((1 - var(--selected-chip-scale)) * 50%);
+
+      --name-chip-radius: 999px;
+      --name-chip-line-height: 1.2;
+      --name-chip-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      --name-chip-font-weight: 400;
+      --presence-pop-gutter: 12px;
+
+      /* result card colors — JS がベタ書きの色値を持たないよう CSS 変数で定義 */
+      --result-ok-text: #ffffff;
+      --result-error-bg: #fef2f2;
+      --result-error-border: #fca5a5;
+      --result-error-shadow: 0 8px 24px rgba(220, 38, 38, 0.15);
+      --result-error-text: #1f2937;
+      --result-error-sub: #4b5563;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body,
+    button,
+    a,
+    .presenceMemberChip,
+    .sizeBtn,
+    .presenceSizeBtn {
+      -webkit-touch-callout: none;
+      -webkit-user-select: none;
+      user-select: none;
+    }
+
+    input,
+    textarea,
+    select,
+    [contenteditable="true"] {
+      -webkit-user-select: auto;
+      user-select: auto;
+    }
+
+    .errorText,
+    .resultSub,
+    #generatedUrlLink {
+      -webkit-user-select: text;
+      user-select: text;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.4);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(107, 114, 128, 0.6);
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      font-family: "LINE Seed JP", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body { overflow: hidden; }
+
+    button, input {
+      font-family: inherit;
+    }
+
+    button, a, .presenceMemberChip {
+      touch-action: manipulation;
+    }
+
+    .ja-text { font-size: 1em; }
+    .en-text {
+      font-size: 0.85em;
+      opacity: 0.90;
+    }
+
+    .material-symbols-outlined {
+      font-family: 'Material Symbols Outlined';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 1em;
+      line-height: 1;
+      display: inline-block;
+      white-space: nowrap;
+      direction: ltr;
+      letter-spacing: normal;
+      text-transform: none;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+      font-feature-settings: 'liga';
+    }
+
+    .locationLabelInline {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0;
+      max-width: 100%;
+      min-width: 0;
+    }
+
+    .locationLabelInline--presence {
+      justify-content: flex-start;
+    }
+
+    .locationIcon {
+      flex: 0 0 auto;
+      color: currentColor;
+      line-height: 1;
+      margin-right: 0.16em;
+    }
+
+    .container {
+      width: 100vw;
+      height: 100vh;
+      padding: env(safe-area-inset-top, 16px)
+               env(safe-area-inset-right, 16px)
+               env(safe-area-inset-bottom, 16px)
+               env(safe-area-inset-left, 16px);
+    }
+
+    .appPanel {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .mainArea {
+      display: grid;
+      grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr);
+      gap: 16px;
+      min-height: 0;
+      overflow: hidden;
+      flex: 1;
+    }
+
+    .leftArea {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--card-rest-shadow);
+      border: 1px solid var(--line);
+      padding: 16px;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .presencePanel {
+      background: var(--panel);
+      border-radius: var(--radius);
+      box-shadow: var(--card-rest-shadow);
+      border: 1px solid var(--line);
+      padding: 16px;
+      min-height: 0;
+      max-height: 100%;
+      overflow: hidden;
+      align-self: stretch;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .leftHeader,
+    .presenceHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 14px;
+      gap: 8px;
+      flex: 0 0 auto;
+    }
+
+    .title,
+    .presenceTitle {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      margin: 0;
+      text-align: left;
+      line-height: 1.25;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .titleWrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .titleStatusIcon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      flex: 0 0 auto;
+    }
+
+    .headerRightControls,
+    .presenceSizeControls {
+      display: flex;
+      gap: 4px;
+      flex: 0 0 auto;
+      align-items: center;
+    }
+
+    .buttonSizeControls {
+      display: flex;
+      gap: 4px;
+    }
+
+    .selectedUserChipContainer {
+      display: flex;
+      align-items: center;
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    .nameChip {
+      display: inline-flex;
+      align-items: center;
+      max-width: 100%;
+      min-width: 0;
+      border-radius: var(--name-chip-radius);
+      line-height: var(--name-chip-line-height);
+      color: #ffffff;
+      box-shadow: var(--name-chip-shadow);
+      border: none;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transform-origin: center center;
+      font-weight: var(--name-chip-font-weight);
+      will-change: transform, opacity;
+    }
+
+    .nameChip--presence {
+      padding: 1px 5px;
+      font-size: var(--presence-members-size);
+    }
+
+    .nameChip--selected {
+      transform: translateX(var(--selected-chip-rest-shift-x)) scale(var(--selected-chip-scale));
+      padding: 3px 10px;
+      font-size: 19px;
+    }
+
+    .nameChip--saving {
+      padding: 5px 16px;
+      font-size: 42px;
+      line-height: 1.12;
+    }
+
+    .sizeBtn,
+    .presenceSizeBtn {
+      appearance: none;
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      color: #64748b;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      font-size: 16px;
+      line-height: 1;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .sizeBtn:hover,
+    .presenceSizeBtn:hover {
+      background: #f1f5f9;
+      color: #334155;
+      border-color: #cbd5e1;
+    }
+
+    .sizeBtn:active,
+    .presenceSizeBtn:active {
+      transform: scale(0.95);
+    }
+
+    .sizeBtn:disabled,
+    .presenceSizeBtn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .leftBody {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .buttonGrid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(var(--button-min-col-width), 1fr));
+      gap: 8px;
+      align-content: start;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding-right: 4px;
+      padding-bottom: calc(var(--press-depth) + 6px);
+      width: 100%;
+    }
+
+    #presenceList {
+      min-height: 0;
+      overflow: auto;
+      margin-left: calc(-1 * var(--presence-pop-gutter));
+      padding-left: var(--presence-pop-gutter);
+      padding-right: 4px;
+    }
+
+    .presenceGroup {
+      padding: 4px 0;
+      margin-bottom: 2px;
+    }
+
+    .presenceGroup:first-of-type {
+      padding-top: 0;
+    }
+
+    .presenceLocation {
+      display: flex;
+      align-items: center;
+      font-size: var(--presence-location-size);
+      font-weight: 400;
+      margin-bottom: 4px;
+      line-height: 1.25;
+      color: var(--text);
+    }
+
+    .loc-name {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .presenceLocation .loc-name {
+      display: flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+
+    .presenceLocation .locationLabelInline--presence {
+      display: inline-flex;
+      align-items: center;
+      flex-wrap: nowrap;
+      min-width: 0;
+    }
+
+    .presenceLocation .locationLabelInline--presence .ja-text,
+    .presenceLocation .locationLabelInline--presence .en-text {
+      display: inline-block;
+      line-height: 1.1;
+    }
+
+    .loc-count {
+      background: #f1f5f9;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 1px 7px;
+      border-radius: 10px;
+      margin-left: 6px;
+    }
+
+    .presenceMembers {
+      font-size: var(--presence-members-size);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 3px 4px;
+      padding-left: 0;
+      margin-top: 0;
+    }
+
+    @keyframes fadeUp {
+      0% { opacity: 0; transform: scale(0.94); }
+      100% { opacity: 1; transform: scale(1); }
+    }
+
+    .btn {
+      border: none;
+      border-radius: 20px;
+      padding: var(--button-padding-y) var(--button-padding-x);
+      background: var(--accent);
+      color: white;
+      font-weight: 400;
+      cursor: pointer;
+      line-height: 1.25;
+      transition:
+        transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        box-shadow 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275),
+        filter 0.18s ease,
+        background 0.15s ease;
+      min-height: var(--button-min-height);
+      font-size: var(--button-font-size);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12), 0 1px 3px rgba(15, 23, 42, 0.08);
+      max-width: 100%;
+      overflow: hidden;
+      touch-action: manipulation;
+    }
+
+    .btn.is-pressed,
+    .btn:active {
+      transition: none;
+      transform: translateY(var(--press-depth)) scale(0.982);
+      box-shadow: var(--card-press-shadow);
+      filter: brightness(0.95) saturate(0.97);
+    }
+
+    .btn .btn-main-line,
+    .btn .btn-sub-line {
+      transition: transform 0.28s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .btn.is-pressed .btn-main-line,
+    .btn.is-pressed .btn-sub-line,
+    .btn:active .btn-main-line,
+    .btn:active .btn-sub-line {
+      transform: translateY(1px);
+    }
+
+    .btn:disabled,
+    .buttonGrid.is-busy .btn {
+      cursor: not-allowed;
+      opacity: 0.55;
+      transform: none;
+    }
+
+    .buttonGrid.is-busy {
+      pointer-events: none;
+    }
+
+    .btn.secondary,
+    .nameChip.secondary,
+    .presenceMemberChip.secondary {
+      background: #f1f5f9;
+      color: var(--text);
+    }
+
+    .btn.secondary {
+      border: 1px solid #dbe3ee;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .btn-main-line {
+      display: block;
+      width: 100%;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+
+    .btn-sub-line {
+      display: block;
+      width: 100%;
+      line-height: 1.2;
+      margin-top: 4px;
+      word-break: keep-all;
+      overflow-wrap: break-word;
+    }
+
+    .hidden { display: none !important; }
+
+    .resultView {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 0;
+      padding-top: 24px;
+      overflow: auto;
+      animation: fadeUp 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+    }
+
+    .resultCard {
+      width: min(760px, 92%);
+      text-align: center;
+      border-radius: 28px;
+      padding: 32px 20px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 34px rgba(15, 23, 42, 0.10), 0 6px 12px rgba(15, 23, 42, 0.06);
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    .resultStatus {
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1.35;
+      margin-bottom: 20px;
+      color: var(--sub);
+    }
+
+    .resultStatus.error { color: var(--danger); }
+
+    .resultName {
+      font-size: 42px;
+      font-weight: 400;
+      line-height: 1.2;
+      margin: 0 0 20px;
+    }
+
+    .resultLocation {
+      font-size: 42px;
+      font-weight: 400;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    .resultSub {
+      font-size: 18px;
+      color: var(--sub);
+      line-height: 1.45;
+      margin-top: 14px;
+      white-space: pre-line;
+    }
+
+    .resultSub.resultSub--danger {
+      color: var(--danger);
+    }
+
+    .resultActions {
+      margin-top: 22px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .resultActionBtn {
+      min-width: 180px;
+      min-height: 60px;
+      font-size: 22px;
+      padding: 12px 20px;
+    }
+
+    .savingPresenceView {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      min-height: 0;
+      padding: 0 12px 16px;
+      overflow: auto;
+    }
+
+    .savingPresenceGroup {
+      width: max-content;
+      max-width: min(96%, 1120px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      margin-inline: auto;
+      transform-origin: center top;
+      will-change: transform, opacity;
+    }
+
+    .savingPresenceLocation {
+      display: flex;
+      align-items: center;
+      width: max-content;
+      max-width: 100%;
+      min-width: 0;
+      margin-bottom: 16px;
+      font-size: 42px;
+      line-height: 1.12;
+      color: var(--text);
+      opacity: 1;
+      transform: translateY(0);
+      transition: opacity 260ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1);
+    }
+
+    .savingPresenceLocation.is-pending {
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+    }
+
+    .savingPresenceLocation .loc-name {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+    }
+
+    .savingPresenceMembers {
+      display: flex;
+      flex-wrap: nowrap;
+      justify-content: center;
+      gap: 0;
+      width: max-content;
+      max-width: 100%;
+      min-width: 0;
+      padding-left: 0;
+    }
+
+    .errorWrap {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 32px 20px 20px;
+      overflow: auto;
+    }
+
+    .errorBox {
+      width: min(760px, 100%);
+      margin-inline: auto;
+      text-align: center;
+      background: var(--panel);
+      padding: 30px;
+      border-radius: 28px;
+      border: 1px solid var(--line);
+      box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+    }
+
+    .errorTitle {
+      font-size: 30px;
+      font-weight: 600;
+      line-height: 1.35;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .errorText {
+      font-size: 18px;
+      line-height: 1.7;
+      color: var(--sub);
+      word-break: break-word;
+    }
+
+    /* Setup page styles */
+    .setupStep {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .setupStep > * {
+      max-width: 100%;
+    }
+
+    .setupInputWrap {
+      margin-top: 20px;
+    }
+
+    .setupInput {
+      width: 100%;
+      max-width: 320px;
+      padding: 14px;
+      font-size: 20px;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      text-align: center;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .setupGenerateWrap {
+      margin-top: 24px;
+    }
+
+    .setupGenerateBtn {
+      min-height: 60px;
+      font-size: 20px;
+      padding: 0 40px;
+      margin: 0 auto;
+    }
+
+    .setupReadyMessage {
+      color: var(--ok);
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+
+    .setupInstructions {
+      margin-bottom: 24px;
+    }
+
+    .setupInstructions .highlight {
+      color: var(--danger);
+    }
+
+    .setupUrlLink {
+      display: block;
+      background: #eff6ff;
+      padding: 16px;
+      border-radius: 16px;
+      border: 2px dashed var(--accent2);
+      word-break: break-all;
+      font-size: 18px;
+      color: var(--accent2);
+      margin-bottom: 24px;
+      text-decoration: underline;
+    }
+
+    .setupQrLabel {
+      font-size: 14px;
+      color: var(--sub);
+      margin-bottom: 8px;
+    }
+
+    .setupQrImage {
+      width: 160px;
+      height: 160px;
+      margin-bottom: 10px;
+      border: 2px solid var(--line);
+      border-radius: 16px;
+      padding: 6px;
+      background: var(--panel);
+    }
+
+    .setupQrNote {
+      font-size: 12px;
+      color: var(--sub);
+      line-height: 1.5;
+    }
+
+    .flyingCardGhost {
+      position: fixed;
+      left: 0;
+      top: 0;
+      z-index: 9999;
+      pointer-events: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 88px;
+      min-height: 40px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 600;
+      line-height: 1.15;
+      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.16);
+      transform-origin: center;
+      will-change: transform, opacity;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 900px) {
+      body { overflow: auto; }
+
+      .container {
+        height: auto;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+      }
+
+      .appPanel {
+        height: auto;
+      }
+
+      .mainArea {
+        display: flex;
+        flex-direction: column;
+        overflow: visible;
+        gap: 16px;
+      }
+
+      .leftArea,
+      .leftBody,
+      .buttonGrid { overflow: visible; }
+
+      .presencePanel {
+        max-height: none;
+        overflow: visible;
+        width: 100%;
+        align-self: stretch;
+      }
+
+      .resultView {
+        min-height: auto;
+        align-items: flex-start;
+        padding: 4px 8px 8px;
+      }
+
+      .title { font-size: 22px; }
+      .resultStatus { font-size: 18px; }
+      .resultName { font-size: 34px; }
+      .resultLocation { font-size: 34px; }
+      .savingPresenceView {
+        padding: 2px 8px 8px;
+        overflow: visible;
+      }
+    }
+
+    @media (max-width: 600px) {
+      :root {
+        --selected-chip-scale: 1;
+        --selected-chip-scale-pop: 1.08;
+      }
+
+      .container { padding: 8px; }
+      .leftArea { padding: 12px; }
+      .presencePanel { padding: 12px; }
+      .leftHeader { gap: 1px; }
+      .title { font-size: 20px; margin-bottom: 2px; }
+      .buttonGrid { gap: 8px; }
+
+      .nameChip--selected {
+        font-size: 22px;
+        padding: 4px 11px;
+      }
+
+      .nameChip--saving {
+        font-size: 28px;
+        padding: 4px 12px;
+      }
+
+      .resultCard {
+        width: 94%;
+        margin: 0 auto;
+        padding: 20px 12px;
+      }
+
+      .resultStatus { font-size: 16px; margin-bottom: 12px; }
+      .resultName { font-size: 28px; margin-bottom: 12px; }
+      .resultLocation { font-size: 28px; }
+      .resultSub { font-size: 16px; }
+      .resultActionBtn { font-size: 18px; min-height: 52px; min-width: 140px; }
+      .savingPresenceGroup { width: max-content; max-width: min(98%, 100%); }
+      .savingPresenceLocation { font-size: 28px; margin-bottom: 10px; }
+      .savingPresenceMembers { padding-left: 0; }
+      .savingPresenceView { padding-bottom: 4px; }
+
+      .errorTitle { font-size: 24px; }
+      .errorText { font-size: 16px; }
+      .presenceSizeBtn, .sizeBtn { width: 26px; height: 26px; font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <? if (hasTerminal) { ?>
+      <div class="appPanel">
+        <div class="mainArea">
+
+          <div class="leftArea">
+            <div class="leftHeader">
+              <div class="titleWrap">
+                <!-- h1 は1ページに1つ。こちらがメインのページ見出し -->
+                <h1 class="title" id="title"></h1>
+                <!-- aria-live でスクリーンリーダーへ状態変化を通知 -->
+                <div class="titleStatusIcon hidden" id="titleStatusIcon" aria-live="polite" aria-atomic="true"></div>
+              </div>
+              <div class="headerRightControls">
+                <div class="buttonSizeControls" id="buttonSizeControls">
+                  <button type="button" class="sizeBtn" id="buttonSizeMinus" aria-label="Smaller buttons">−</button>
+                  <button type="button" class="sizeBtn" id="buttonSizePlus" aria-label="Larger buttons">＋</button>
+                </div>
+                <div class="selectedUserChipContainer hidden" id="selectedUserChipContainer">
+                  <span class="nameChip nameChip--selected" id="selectedUserChip"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="leftBody">
+              <div class="buttonGrid" id="buttonGrid"></div>
+
+              <div class="resultView hidden" id="resultView">
+                <div class="savingPresenceView hidden" id="savingPresenceView">
+                  <div class="savingPresenceGroup" id="savingPresenceGroup">
+                    <div class="savingPresenceLocation" id="savingPresenceLocation">
+                      <span class="loc-name" id="savingPresenceLocationName"></span>
+                    </div>
+                    <div class="savingPresenceMembers" id="savingPresenceMembers">
+                      <span class="nameChip nameChip--saving" id="savingPresenceChip"></span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="resultCard hidden" id="resultCard">
+                  <div class="resultStatus hidden" id="resultStatus"></div>
+                  <div class="resultName" id="resultName"></div>
+                  <div class="resultLocation" id="resultLocation"></div>
+                  <div class="resultSub hidden" id="resultSub"></div>
+
+                  <div class="resultActions hidden" id="resultActions">
+                    <button type="button" class="btn secondary resultActionBtn" id="resultOkBtn">
+                      <span class="btn-main-line">戻る</span>
+                      <span class="btn-sub-line en-text">Back</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="presencePanel">
+            <div class="presenceHeader">
+              <!-- h2 に変更（h1 は上の .title） -->
+              <h2 class="presenceTitle"><span class="ja-text">在室状況</span><br><span class="en-text">Current Status</span></h2>
+              <div class="presenceSizeControls">
+                <button type="button" class="presenceSizeBtn" id="presenceFontMinus" aria-label="Smaller text">−</button>
+                <button type="button" class="presenceSizeBtn" id="presenceFontPlus" aria-label="Larger text">＋</button>
+              </div>
+            </div>
+            <div id="presenceList"></div>
+          </div>
+
+        </div>
+      </div>
+    <? } else { ?>
+      <div class="errorWrap">
+        <div class="errorBox">
+          <div class="errorTitle">
+            <span class="ja-text">端末のセットアップ</span><br><span class="en-text">Terminal Setup</span>
+          </div>
+
+          <div id="setupStep1" class="setupStep">
+            <div class="errorText">
+              新しい端末の名前を半角英数字で入力してください。
+            </div>
+            <div class="setupInputWrap">
+              <input
+                type="text"
+                id="setupTerminalName"
+                class="setupInput"
+                placeholder="例: entrance-ipad"
+              >
+            </div>
+            <div class="setupGenerateWrap">
+              <button type="button" class="btn setupGenerateBtn" id="generateUrlBtn">
+                <span class="btn-main-line">専用URLを生成する</span>
+                <span class="btn-sub-line en-text">Generate</span>
+              </button>
+            </div>
+          </div>
+
+          <div id="setupStep2" class="setupStep hidden">
+            <div class="setupReadyMessage">
+              ✅ 準備完了まであと一歩です！
+            </div>
+            <div class="errorText setupInstructions">
+              以下のリンクを押してアプリを開き、<br>
+              <span class="highlight">開いた先の画面</span>を「ホーム画面に追加」<br>または「ブックマーク」してください。
+            </div>
+
+            <a
+              id="generatedUrlLink"
+              href="#"
+              target="_top"
+              class="setupUrlLink"
+            ></a>
+
+            <div class="setupQrLabel">
+              別の端末で開く場合はQRコードをスキャン
+            </div>
+            <img
+              id="qrCodeImage"
+              src=""
+              alt="QR Code"
+              class="setupQrImage"
+            >
+            <div class="setupQrNote">
+              QRコードは外部サービスを使って生成しています。表示されない場合は、上のURLを直接開いてください。
+            </div>
+          </div>
+
+          <script>
+            const BASE_URL = <?!= appUrlRaw || '""' ?>;
+
+            function generateUrl() {
+              const val = document.getElementById('setupTerminalName').value.trim();
+              if (!val) {
+                alert('端末名を入力してください。\nPlease enter a terminal name.');
+                return;
+              }
+              if (!/^[a-zA-Z0-9_-]+$/.test(val)) {
+                alert('半角英数字、ハイフン(-)、アンダースコア(_)のみ使用できます。\nUse alphanumeric characters, hyphens (-), and underscores (_) only.');
+                return;
+              }
+              const finalUrl = BASE_URL + '?terminal=' + encodeURIComponent(val);
+              const linkEl = document.getElementById('generatedUrlLink');
+              linkEl.href = finalUrl;
+              linkEl.textContent = finalUrl;
+              document.getElementById('qrCodeImage').src =
+                'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(finalUrl);
+              document.getElementById('setupStep1').classList.add('hidden');
+              document.getElementById('setupStep2').classList.remove('hidden');
+            }
+
+            window.addEventListener('load', () => {
+              const input = document.getElementById('setupTerminalName');
+              const button = document.getElementById('generateUrlBtn');
+
+              if (button) {
+                button.addEventListener('click', generateUrl);
+              }
+
+              if (input) {
+                input.addEventListener('keydown', e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    generateUrl();
+                  }
+                });
+              }
+            });
+          </script>
+        </div>
+      </div>
+    <? } ?>
+  </div>
+
+  <? if (hasTerminal) { ?>
+  <script>
+    // AudioContext の初期化: pointerdown を使い、タッチ・マウス両方に対応
+    document.body.addEventListener('pointerdown', () => {
+      if (!tapAudioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) tapAudioCtx = new AudioContextClass();
+      }
+      if (tapAudioCtx && tapAudioCtx.state === 'suspended') {
+        tapAudioCtx.resume();
+      }
+    }, { once: true });
+
+    const INITIAL_TERMINAL_NAME = <?!= initialTerminalNameRaw || 'null' ?>;
+    const INJECTED_DATA = <?!= initialDataRaw || 'null' ?>;
+
+    const POLL_INTERVAL_MS = 15000;
+
+    // アニメーション設定を一か所で管理
+    const CHIP_ANIMATION = {
+      flight: {
+        durationMs: 400,
+        easing: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
+        startOpacity: 1.00,
+        endOpacity: 0.1
+      },
+      landing: {
+        durationMs: 300,
+        easing: 'cubic-bezier(0.2, 0.9, 0.2, 1.08)',
+        startScaleFactor: 0.90,
+        peakScale: 1.05,
+        peakOffset: 0.50
+      },
+      timing: {
+        overlapMs: 200  // フライト終了前にランディングを開始するオフセット
+      }
+    };
+
+    const SAVE_TIMEOUT_MS = 15000;
+    const SAVING_LOCATION_REVEAL_AFTER_START_MS = 0;
+
+    const PRESENCE_FONT_LEVEL_KEY = 'presenceFontLevel';
+    const PRESENCE_FONT_MIN = 1;
+    const PRESENCE_FONT_MAX = 5;
+    const PRESENCE_FONT_DEFAULT = 3;
+
+    const BUTTON_SIZE_LEVEL_KEY = 'buttonSizeLevel';
+    const BUTTON_SIZE_MIN = 1;
+    const BUTTON_SIZE_MAX = 5;
+    const BUTTON_SIZE_DEFAULT = 3;
+
+    const PRESENCE_FONT_SIZE_MAP = {
+      1: { location: 15, members: 13 },
+      2: { location: 17, members: 15 },
+      3: { location: 19, members: 17 },
+      4: { location: 21, members: 19 },
+      5: { location: 23, members: 21 }
+    };
+
+    const BUTTON_SIZE_MAP = {
+      1: { font: 18, minHeight: 54, py: 6, px: 6, minCol: 90 },
+      2: { font: 20, minHeight: 60, py: 8, px: 8, minCol: 105 },
+      3: { font: 22, minHeight: 66, py: 10, px: 8, minCol: 120 },
+      4: { font: 24, minHeight: 74, py: 12, px: 10, minCol: 140 },
+      5: { font: 26, minHeight: 82, py: 14, px: 12, minCol: 160 }
+    };
+
+    // escapeHtml で毎回オブジェクト生成しないよう外部定数化
+    const HTML_ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+    let appData = {
+      users: [],
+      locations: [],
+      terminalName: INITIAL_TERMINAL_NAME || '',
+      presence: []
+    };
+
+    let selectedUser = null;
+    let resetTimer = null;
+    let presencePollTimer = null;
+    let lastPresenceJson = '';
+    let isPresenceFetchRunning = false;
+    let presenceFetchVersion = 0;
+
+    let syncQueue = [];
+    let isQueueProcessing = false;
+    let isQueuePaused = false;
+    let isUiLocked = false;
+
+    let tapAudioCtx = null;
+    let presenceFontLevel = PRESENCE_FONT_DEFAULT;
+    let buttonSizeLevel = BUTTON_SIZE_DEFAULT;
+    let lastSelectedUserButtonRect = null;
+    let lastSelectedUserButtonStartWidth = 0;
+    let savingPresenceLocationTimer = null;
+    let saveWatchdogTimer = null;
+    let saveRequestSeq = 0;
+    let activeSaveRequestId = null;
+
+    // presence 更新時のみ再計算するカラーマップキャッシュ
+    let cachedUserLocationColorMap = null;
+
+    const els = {};
+
+    function initDOM() {
+      els.title                    = document.getElementById('title');
+      els.titleStatusIcon          = document.getElementById('titleStatusIcon');
+      els.buttonSizeControls       = document.getElementById('buttonSizeControls');
+      els.selectedUserChipContainer= document.getElementById('selectedUserChipContainer');
+      els.selectedUserChip         = document.getElementById('selectedUserChip');
+      els.buttonGrid               = document.getElementById('buttonGrid');
+      els.resultView               = document.getElementById('resultView');
+      els.savingPresenceView       = document.getElementById('savingPresenceView');
+      els.savingPresenceGroup      = document.getElementById('savingPresenceGroup');
+      els.savingPresenceLocation   = document.getElementById('savingPresenceLocation');
+      els.savingPresenceLocationName = document.getElementById('savingPresenceLocationName');
+      els.savingPresenceChip       = document.getElementById('savingPresenceChip');
+      els.resultCard               = document.getElementById('resultCard');
+      els.presenceList             = document.getElementById('presenceList');
+      els.resultStatus             = document.getElementById('resultStatus');
+      els.resultName               = document.getElementById('resultName');
+      els.resultLocation           = document.getElementById('resultLocation');
+      els.resultSub                = document.getElementById('resultSub');
+      els.resultActions            = document.getElementById('resultActions');
+      els.resultOkBtn              = document.getElementById('resultOkBtn');
+      els.presenceFontMinus        = document.getElementById('presenceFontMinus');
+      els.presenceFontPlus         = document.getElementById('presenceFontPlus');
+      els.buttonSizeMinus          = document.getElementById('buttonSizeMinus');
+      els.buttonSizePlus           = document.getElementById('buttonSizePlus');
+    }
+
+    function clearResetTimer() {
+      if (!resetTimer) return;
+      clearTimeout(resetTimer);
+      resetTimer = null;
+    }
+
+    function clearSaveWatchdogTimer() {
+      if (!saveWatchdogTimer) return;
+      clearTimeout(saveWatchdogTimer);
+      saveWatchdogTimer = null;
+    }
+
+    function clearActiveSaveRequest() {
+      clearSaveWatchdogTimer();
+      activeSaveRequestId = null;
+    }
+
+    function handleSaveTimeout(task, requestId) {
+      if (requestId !== activeSaveRequestId) return;
+
+      clearActiveSaveRequest();
+      isQueueProcessing = false;
+      syncQueue.shift();
+      isQueuePaused = true;
+      isUiLocked = true;
+
+      clearResetTimer();
+
+      setHeader('通信に時間がかかっています', 'Request Taking Too Long', 'error');
+      setSelectedUserChipHidden(true);
+      showResultView({
+        ok: false,
+        statusError: '通信が長引いています<br>Request is taking too long',
+        nameJa: task.nameJa,
+        nameEn: task.nameEn,
+        locationJa: task.locationJa,
+        locationEn: task.locationEn,
+        subJa: '保存処理の応答が規定時間以内に返りませんでした。［戻る］を押して画面を戻してください。\n\nサーバー側では保存が完了している可能性もあるため、右欄の表示も確認してください。',
+        subEn: 'No response was received within the expected time. Press [Back] to return.\n\nThe save may still have completed on the server, so also check the status panel on the right.',
+        inline: true
+      });
+
+      startPresencePolling();
+      fetchPresenceNow();
+
+      showResultActionButton(() => {
+        isQueuePaused = false;
+        isUiLocked = false;
+        renderUserSelection();
+        processQueue();
+      });
+    }
+
+    function setSelectedUserChipHidden(isHidden) {
+      if (!els.selectedUserChipContainer) return;
+      els.selectedUserChipContainer.classList.toggle('hidden', !!isHidden);
+    }
+
+    // load 時に1回だけ呼ばれるため、二重バインド防止フラグは不要
+    function bindStaticPressFeedback() {
+      [
+        els.resultOkBtn,
+        els.presenceFontMinus,
+        els.presenceFontPlus,
+        els.buttonSizeMinus,
+        els.buttonSizePlus
+      ].forEach(attachPressFeedback);
+    }
+
+    function bindStaticControlEvents() {
+      if (els.presenceFontMinus) {
+        els.presenceFontMinus.addEventListener('click', () => {
+          playTapSound();
+          changePresenceFontLevel(-1);
+        });
+      }
+      if (els.presenceFontPlus) {
+        els.presenceFontPlus.addEventListener('click', () => {
+          playTapSound();
+          changePresenceFontLevel(1);
+        });
+      }
+      if (els.buttonSizeMinus) {
+        els.buttonSizeMinus.addEventListener('click', () => {
+          playTapSound();
+          changeButtonSizeLevel(-1);
+        });
+      }
+      if (els.buttonSizePlus) {
+        els.buttonSizePlus.addEventListener('click', () => {
+          playTapSound();
+          changeButtonSizeLevel(1);
+        });
+      }
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, ch => HTML_ESCAPE_MAP[ch]);
+    }
+
+    function formatBilingualLines(ja, en) {
+      const parts = [];
+      if (ja) parts.push(`<span class="ja-text">${escapeHtml(ja)}</span>`);
+      if (en) parts.push(`<span class="en-text">${escapeHtml(en)}</span>`);
+      return parts.join('<br>');
+    }
+
+    function formatBilingualInline(ja, en) {
+      if (ja && en) {
+        return `<span class="ja-text">${escapeHtml(ja)}</span><span class="en-text">/${escapeHtml(en)}</span>`;
+      }
+      if (ja) return `<span class="ja-text">${escapeHtml(ja)}</span>`;
+      if (en) return `<span class="en-text">${escapeHtml(en)}</span>`;
+      return '';
+    }
+
+    function normalizeMaterialSymbolName(iconName) {
+      const normalized = String(iconName || '').trim().toLowerCase().replace(/[\s-]+/g, '_');
+      return /^[a-z0-9_]+$/.test(normalized) ? normalized : '';
+    }
+
+    // colorStyle を引数で受け取り、replace() ハックを排除
+    function renderLocationIconHtml(iconName, variantClass, colorStyle) {
+      const safeName = normalizeMaterialSymbolName(iconName);
+      if (!safeName) return '';
+
+      const styleAttr = colorStyle ? ` style="color: ${escapeHtml(colorStyle)};"` : '';
+      return `<span class="material-symbols-outlined locationIcon ${variantClass || ''}" aria-hidden="true"${styleAttr}>${safeName}</span>`;
+    }
+
+    function renderLocationButtonMainLineHtml(location) {
+      return escapeHtml(location && location.ja || '');
+    }
+
+    function renderSavingLocationHtml(location) {
+      const locationJa = escapeHtml(location && location.ja || '');
+      const locationEn = escapeHtml(location && location.en || '');
+      const iconColor  = normalizeHexColor(location && location.color) || getDefaultAccentColor();
+      const iconHtml   = renderLocationIconHtml(location && location.icon, 'locationIcon--presence', iconColor);
+
+      return `<span class="locationLabelInline locationLabelInline--saving">${iconHtml}<span class="ja-text">${locationJa}</span><span class="en-text">/${locationEn}</span></span>`;
+    }
+
+    function renderPresenceLocationHtml(locationJa, locationEn, iconName, iconColor) {
+      const safeJa = escapeHtml(locationJa);
+      const safeEn = escapeHtml(locationEn);
+      const iconHtml = renderLocationIconHtml(iconName, 'locationIcon--presence', iconColor || null);
+
+      return `<span class="locationLabelInline locationLabelInline--presence">${iconHtml}<span class="ja-text">${safeJa}</span><span class="en-text">/${safeEn}</span></span>`;
+    }
+
+    function extractErrorText(err) {
+      const raw = String((err && err.message) || (err && err.details) || err || '').trim();
+
+      const isLockConflict =
+        raw.includes('This action was not saved because another save was in progress') ||
+        raw.includes('ほかの保存処理と重なったため、今回は保存されませんでした') ||
+        raw.includes('A save operation was still in progress') ||
+        raw.includes('保存処理が進行中のため');
+
+      if (!raw) {
+        return { ja: '不明なエラーが発生しました', en: 'An unknown error occurred', reason: 'unknown' };
+      }
+
+      return {
+        ja: `エラー\n${raw}`,
+        en: `Error\n${raw}`,
+        reason: isLockConflict ? 'lock' : 'other'
+      };
+    }
+
+    function clamp(num, min, max) {
+      return Math.min(max, Math.max(min, num));
+    }
+
+    function normalizeHexColor(color) {
+      const s = String(color || '').trim();
+      if (!/^#[0-9a-f]{3}([0-9a-f]{3})?$/i.test(s)) return '';
+      return s.length === 4
+        ? '#' + s.slice(1).split('').map(ch => ch + ch).join('')
+        : s;
+    }
+
+    function adjustHexColor(color, amount) {
+      const hex = normalizeHexColor(color);
+      if (!hex) return '';
+
+      const r = clamp(parseInt(hex.slice(1, 3), 16) + amount, 0, 255);
+      const g = clamp(parseInt(hex.slice(3, 5), 16) + amount, 0, 255);
+      const b = clamp(parseInt(hex.slice(5, 7), 16) + amount, 0, 255);
+
+      return '#' + [r, g, b].map(n => n.toString(16).padStart(2, '0')).join('');
+    }
+
+    // フォールバック色を CSS の --accent (#4b5563) と一致させる
+    function getDefaultAccentColor() {
+      return normalizeHexColor(
+        getComputedStyle(document.documentElement).getPropertyValue('--accent')
+      ) || '#4b5563';
+    }
+
+    function invalidateUserLocationColorCache() {
+      cachedUserLocationColorMap = null;
+    }
+
+    // presence 更新時のみ再計算し、それ以外はキャッシュを返す
+    function getUserLocationColorMap() {
+      if (cachedUserLocationColorMap) return cachedUserLocationColorMap;
+
+      const colorMap = new Map(
+        (appData.locations || []).map(l => [l.id, normalizeHexColor(l.color)])
+      );
+
+      const map = new Map();
+      (appData.presence || []).forEach(group => {
+        const locationColor = colorMap.get(group.locationId) || '';
+        (group.members || []).forEach(member => {
+          if (member && member.username) {
+            map.set(member.username, locationColor);
+          }
+        });
+      });
+
+      cachedUserLocationColorMap = map;
+      return map;
+    }
+
+    function getPresenceSignature(presence) {
+      return JSON.stringify((presence || []).map(group => ({
+        locationId: group && group.locationId || '',
+        locationJa: group && group.locationJa || '',
+        locationEn: group && group.locationEn || '',
+        members: (group && group.members || []).map(member => ({
+          username: member && member.username || '',
+          nameJa:   member && member.nameJa   || '',
+          nameEn:   member && member.nameEn   || ''
+        }))
+      })));
+    }
+
+    function refreshUserButtonsIfNeeded() {
+      const isUserSelectionScreen = !selectedUser &&
+        !isUiLocked &&
+        els.resultView.classList.contains('hidden') &&
+        !els.buttonGrid.classList.contains('hidden') &&
+        els.buttonGrid.dataset.viewType === 'user';
+
+      if (!isUserSelectionScreen) return;
+
+      const buttons = Array.from(els.buttonGrid.querySelectorAll('button[data-username]'));
+      if (buttons.length !== (appData.users || []).length) {
+        setButtons(appData.users, user => {
+          selectedUser = user;
+          renderLocationSelection();
+        }, { type: 'user' });
+        return;
+      }
+
+      const colorMap = getUserLocationColorMap();
+      buttons.forEach(btn => {
+        const bg = colorMap.get(btn.dataset.username);
+        btn.style.backgroundColor = '';
+        btn.classList.remove('secondary');
+
+        if (bg) {
+          btn.style.backgroundColor = bg;
+        } else {
+          btn.classList.add('secondary');
+        }
+      });
+    }
+
+    function playTapSound() {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        if (!tapAudioCtx) {
+          tapAudioCtx = new AudioContextClass();
+        }
+
+        if (tapAudioCtx.state === 'suspended') {
+          tapAudioCtx.resume();
+        }
+
+        const osc  = tapAudioCtx.createOscillator();
+        const gain = tapAudioCtx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.value = 880;
+
+        gain.gain.setValueAtTime(0.0001, tapAudioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.8,    tapAudioCtx.currentTime + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.0001, tapAudioCtx.currentTime + 0.05);
+
+        osc.connect(gain);
+        gain.connect(tapAudioCtx.destination);
+
+        osc.start();
+        osc.stop(tapAudioCtx.currentTime + 0.05);
+      } catch (_) {}
+    }
+
+    function attachPressFeedback(btn) {
+      if (!btn || btn.dataset.pressFeedbackBound === '1') return;
+      btn.dataset.pressFeedbackBound = '1';
+
+      const pressOn  = () => { if (!btn.disabled) btn.classList.add('is-pressed'); };
+      const pressOff = () => btn.classList.remove('is-pressed');
+
+      btn.addEventListener('pointerdown',  pressOn,  { passive: true });
+      btn.addEventListener('pointerup',    pressOff, { passive: true });
+      btn.addEventListener('pointercancel',pressOff, { passive: true });
+      btn.addEventListener('pointerleave', pressOff, { passive: true });
+      btn.addEventListener('blur',         pressOff, { passive: true });
+    }
+
+    function getRectFromElement(el) {
+      if (!el) return null;
+      const rect = el.getBoundingClientRect();
+      if (!rect || !rect.width || !rect.height) return null;
+      return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    }
+
+    function measureNaturalTextWidth(el) {
+      if (!el) return 0;
+
+      const probe = document.createElement('span');
+      const style = window.getComputedStyle(el);
+
+      probe.textContent = (el.textContent || '').trim();
+      probe.style.position    = 'fixed';
+      probe.style.left        = '-99999px';
+      probe.style.top         = '-99999px';
+      probe.style.visibility  = 'hidden';
+      probe.style.whiteSpace  = 'nowrap';
+      probe.style.display     = 'inline-block';
+      // font ショートハンドで fontFamily/fontSize/fontWeight/fontStyle/lineHeight をまとめて設定
+      probe.style.font         = style.font;
+      probe.style.letterSpacing= style.letterSpacing;
+      probe.style.textTransform= style.textTransform;
+
+      document.body.appendChild(probe);
+      const width = probe.getBoundingClientRect().width;
+      probe.remove();
+
+      return width;
+    }
+
+    function measureTwoLineButtonChipStartWidth(btn) {
+      if (!btn) return 0;
+
+      const mainLine = btn.querySelector('.btn-main-line');
+      const subLine  = btn.querySelector('.btn-sub-line');
+      const textWidth = Math.max(
+        measureNaturalTextWidth(mainLine),
+        measureNaturalTextWidth(subLine)
+      );
+
+      return textWidth > 0 ? textWidth + 20 : 0;
+    }
+
+    function getGhostChipMetrics(el) {
+      if (!el) return { fontSizePx: 42, paddingY: 5, paddingX: 16 };
+
+      const cs = getComputedStyle(el);
+      return {
+        fontSizePx: parseFloat(cs.fontSize)  || 42,
+        paddingY:   parseFloat(cs.paddingTop) || 5,
+        paddingX:   parseFloat(cs.paddingLeft)|| 16
+      };
+    }
+
+    function stopElementAnimations(el) {
+      if (!el) return;
+      if (el.getAnimations) {
+        el.getAnimations().forEach(anim => anim.cancel());
+      }
+      el.style.opacity   = '';
+      el.style.transform = '';
+    }
+
+    function startElementAnimation(el, keyframes, options, onFinish, onCancel) {
+      if (!el || !el.animate) return null;
+
+      const anim = el.animate(keyframes, options);
+
+      if (anim.finished && (onFinish || onCancel)) {
+        anim.finished.then(onFinish || (() => {}), onCancel || (() => {}));
+      }
+
+      return anim;
+    }
+
+    function scheduleAnimationStart(fn) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(fn);
+      });
+    }
+
+    function getSelectedChipLandingTransforms() {
+      const rootStyle = getComputedStyle(document.documentElement);
+      const shiftX    = rootStyle.getPropertyValue('--selected-chip-rest-shift-x').trim() || '0px';
+      const restScale = parseFloat(rootStyle.getPropertyValue('--selected-chip-scale'))    || 1;
+      const peakScale = parseFloat(rootStyle.getPropertyValue('--selected-chip-scale-pop'))|| restScale;
+
+      return {
+        startTransform: `translateX(${shiftX}) scale(${restScale * CHIP_ANIMATION.landing.startScaleFactor})`,
+        peakTransform:  `translateX(${shiftX}) scale(${peakScale})`,
+        endTransform:   `translateX(${shiftX}) scale(${restScale})`
+      };
+    }
+
+    function getChipLandingTransforms(el) {
+      if (el === els.selectedUserChip) {
+        return getSelectedChipLandingTransforms();
+      }
+      if (el === els.savingPresenceChip) {
+        return {
+          startTransform: 'scale(1)',
+          peakTransform:  'scale(1)',
+          endTransform:   'scale(1)'
+        };
+      }
+
+      return {
+        startTransform: `scale(${CHIP_ANIMATION.landing.startScaleFactor})`,
+        peakTransform:  `scale(${CHIP_ANIMATION.landing.peakScale})`,
+        endTransform:   'scale(1)'
+      };
+    }
+
+    function getLandingDelayMs(flightDurationMs) {
+      return Math.max(0, flightDurationMs - CHIP_ANIMATION.timing.overlapMs);
+    }
+
+    function playGhostFlight(fromRect, toRect, options = {}) {
+      if (!fromRect || !toRect) return null;
+
+      const ghost = document.createElement('div');
+      ghost.className = 'flyingCardGhost';
+      ghost.innerHTML = options.html || '';
+      ghost.style.background = options.background || getDefaultAccentColor();
+
+      if (options.fontSizePx) ghost.style.fontSize  = `${options.fontSizePx}px`;
+      if (options.fontWeight) ghost.style.fontWeight = String(options.fontWeight);
+      if (options.paddingY != null || options.paddingX != null) {
+        const py = options.paddingY != null ? options.paddingY : 4;
+        const px = options.paddingX != null ? options.paddingX : 10;
+        ghost.style.padding = `${py}px ${px}px`;
+      }
+
+      // 初期測定のために非表示で配置
+      ghost.style.visibility = 'hidden';
+      document.body.appendChild(ghost);
+
+      const ghostRect  = ghost.getBoundingClientRect();
+      const baseWidth  = options.baseWidth  || ghostRect.width;
+      const baseHeight = options.baseHeight || ghostRect.height;
+
+      if (!Number.isFinite(baseWidth) || !baseWidth || !Number.isFinite(baseHeight) || !baseHeight) {
+        ghost.remove();
+        return null;
+      }
+
+      const startScaleX = Number.isFinite(options.startScaleX)
+        ? options.startScaleX
+        : (Number.isFinite(options.startScale) ? options.startScale : 1);
+      const startScaleY = Number.isFinite(options.startScaleY)
+        ? options.startScaleY
+        : (Number.isFinite(options.startScale) ? options.startScale : 1);
+      const endScaleX = Number.isFinite(options.endScaleX)
+        ? options.endScaleX
+        : (Number.isFinite(options.endScale) ? options.endScale : 1);
+      const endScaleY = Number.isFinite(options.endScaleY)
+        ? options.endScaleY
+        : (Number.isFinite(options.endScale) ? options.endScale : 1);
+
+      const durationMs   = Number.isFinite(options.durationMs)   ? options.durationMs   : CHIP_ANIMATION.flight.durationMs;
+      const easing       = options.easing       || CHIP_ANIMATION.flight.easing;
+      const startOpacity = Number.isFinite(options.startOpacity) ? options.startOpacity : CHIP_ANIMATION.flight.startOpacity;
+      const endOpacity   = Number.isFinite(options.endOpacity)   ? options.endOpacity   : CHIP_ANIMATION.flight.endOpacity;
+
+      const startX = fromRect.left + fromRect.width  / 2 - baseWidth  / 2;
+      const startY = fromRect.top  + fromRect.height / 2 - baseHeight / 2;
+      const endX   = toRect.left   + toRect.width    / 2 - baseWidth  / 2;
+      const endY   = toRect.top    + toRect.height   / 2 - baseHeight / 2;
+
+      const startTransform = `translate(${startX}px, ${startY}px) scale(${startScaleX}, ${startScaleY})`;
+      const endTransform   = `translate(${endX}px,   ${endY}px)   scale(${endScaleX},   ${endScaleY})`;
+
+      ghost.style.width     = `${baseWidth}px`;
+      ghost.style.height    = `${baseHeight}px`;
+      ghost.style.transform = startTransform;
+      ghost.style.opacity   = String(startOpacity);
+      ghost.style.visibility= 'visible';
+
+      const anim = startElementAnimation(
+        ghost,
+        [
+          { transform: startTransform, opacity: startOpacity },
+          { transform: endTransform,   opacity: endOpacity   }
+        ],
+        { duration: durationMs, easing, fill: 'forwards' },
+        () => ghost.remove(),
+        () => ghost.remove()
+      );
+
+      if (!anim) {
+        ghost.remove();
+        return null;
+      }
+
+      return anim;
+    }
+
+    function playChipLanding(targetEl, delayMs = 0) {
+      if (!targetEl) return null;
+
+      stopElementAnimations(targetEl);
+
+      const { startTransform, peakTransform, endTransform } = getChipLandingTransforms(targetEl);
+
+      const anim = startElementAnimation(
+        targetEl,
+        [
+          { transform: startTransform, opacity: 0, offset: 0 },
+          { transform: peakTransform,  opacity: 1, offset: CHIP_ANIMATION.landing.peakOffset },
+          { transform: endTransform,   opacity: 1, offset: 1 }
+        ],
+        {
+          duration: CHIP_ANIMATION.landing.durationMs,
+          delay:    Math.max(0, delayMs),
+          easing:   CHIP_ANIMATION.landing.easing,
+          fill:     'both'
+        },
+        () => {
+          targetEl.style.opacity   = '1';
+          targetEl.style.transform = endTransform;
+        }
+      );
+
+      if (!anim) {
+        stopElementAnimations(targetEl);
+        return null;
+      }
+
+      return anim;
+    }
+
+    function launchGhostWithLandingPop({
+      fromRect,
+      toRect,
+      ghostOptions = {},
+      targetEl = null,
+      sourceEl = null,
+      clearSourceAnimation = true
+    }) {
+      if (!fromRect || !toRect) return null;
+
+      const flightDurationMs = Number.isFinite(ghostOptions.durationMs)
+        ? ghostOptions.durationMs
+        : CHIP_ANIMATION.flight.durationMs;
+
+      const landingDelayMs = getLandingDelayMs(flightDurationMs);
+
+      const flightAnim  = playGhostFlight(fromRect, toRect, ghostOptions);
+      if (!flightAnim) return null;
+
+      if (sourceEl && clearSourceAnimation) {
+        stopElementAnimations(sourceEl);
+      }
+
+      const landingAnim = targetEl ? playChipLanding(targetEl, landingDelayMs) : null;
+
+      return { flightAnim, landingAnim };
+    }
+
+    function animateSelectedUserChip() {
+      if (!lastSelectedUserButtonRect || !els.selectedUserChip) return;
+
+      const targetRect = getRectFromElement(els.selectedUserChip);
+      if (!targetRect) return;
+
+      const html       = els.selectedUserChip.innerHTML;
+      const bg         = els.selectedUserChip.style.backgroundColor || getDefaultAccentColor();
+      const startWidth = lastSelectedUserButtonStartWidth || lastSelectedUserButtonRect.width;
+      const startScale = clamp(startWidth / targetRect.width, 0.2, 0.98);
+
+      const launched = launchGhostWithLandingPop({
+        fromRect: lastSelectedUserButtonRect,
+        toRect:   targetRect,
+        ghostOptions: {
+          html,
+          background: bg,
+          fontSizePx: 19,
+          fontWeight: 400,
+          paddingY:   3,
+          paddingX:   10,
+          baseWidth:  targetRect.width,
+          baseHeight: targetRect.height,
+          startScaleX: startScale,
+          startScaleY: startScale,
+          endScaleX: 1,
+          endScaleY: 1
+        },
+        targetEl: els.selectedUserChip
+      });
+
+      if (!launched) {
+        stopElementAnimations(els.selectedUserChip);
+      }
+    }
+
+    function animateResultCardArrival(task) {
+      if (!task || !task.originChipRect || !els.savingPresenceChip) return;
+
+      const toRect = getRectFromElement(els.savingPresenceChip);
+      if (!toRect) return;
+
+      const m = getGhostChipMetrics(els.savingPresenceChip);
+
+      const launched = launchGhostWithLandingPop({
+        fromRect: task.originChipRect,
+        toRect,
+        ghostOptions: {
+          html:       task.originChipHtml,
+          background: task.color || task.originChipBackground,
+          fontSizePx: m.fontSizePx,
+          fontWeight: 400,
+          paddingY:   m.paddingY,
+          paddingX:   m.paddingX,
+          baseWidth:  toRect.width,
+          baseHeight: toRect.height,
+          startScaleX: task.originChipRect.width  / toRect.width,
+          startScaleY: task.originChipRect.height / toRect.height,
+          endScaleX: 1,
+          endScaleY: 1,
+          endOpacity: 0
+        },
+        sourceEl: els.selectedUserChip,
+        targetEl: els.savingPresenceChip
+      });
+
+      if (!launched) {
+        stopElementAnimations(els.savingPresenceChip);
+      }
+    }
+
+    function getPresenceChipElement(username) {
+      if (!username || !els.presenceList || !window.CSS || !CSS.escape) return null;
+      return els.presenceList.querySelector(`.presenceMemberChip[data-username="${CSS.escape(username)}"]`);
+    }
+
+    function animateSavedChipToPresence(task) {
+      if (!task || !task.username || !els.savingPresenceChip) return false;
+
+      const fromRect   = getRectFromElement(els.savingPresenceChip);
+      const targetChip = getPresenceChipElement(task.username);
+      const toRect     = getRectFromElement(targetChip);
+
+      if (!fromRect || !toRect) return false;
+
+      const m = getGhostChipMetrics(els.savingPresenceChip);
+
+      const launched = launchGhostWithLandingPop({
+        fromRect,
+        toRect,
+        ghostOptions: {
+          html:       els.savingPresenceChip.innerHTML,
+          background: task.color || els.savingPresenceChip.style.backgroundColor || getDefaultAccentColor(),
+          fontSizePx: m.fontSizePx,
+          fontWeight: 400,
+          paddingY:   m.paddingY,
+          paddingX:   m.paddingX,
+          baseWidth:  fromRect.width,
+          baseHeight: fromRect.height,
+          startScaleX: 1,
+          startScaleY: 1,
+          endScaleX: toRect.width  / fromRect.width,
+          endScaleY: toRect.height / fromRect.height
+        },
+        sourceEl: els.savingPresenceChip,
+        targetEl: targetChip,
+        clearSourceAnimation: false
+      });
+
+      if (!launched) {
+        stopElementAnimations(els.savingPresenceChip);
+        stopElementAnimations(targetChip);
+      }
+
+      return !!launched;
+    }
+
+    function loadPresenceFontLevel() {
+      try {
+        const saved = Number(localStorage.getItem(PRESENCE_FONT_LEVEL_KEY));
+        presenceFontLevel = (Number.isInteger(saved) && saved >= PRESENCE_FONT_MIN && saved <= PRESENCE_FONT_MAX)
+          ? saved
+          : PRESENCE_FONT_DEFAULT;
+      } catch (_) {
+        presenceFontLevel = PRESENCE_FONT_DEFAULT;
+      }
+    }
+
+    function savePresenceFontLevel() {
+      try { localStorage.setItem(PRESENCE_FONT_LEVEL_KEY, String(presenceFontLevel)); } catch (_) {}
+    }
+
+    function applyPresenceFontLevel() {
+      const sizes = PRESENCE_FONT_SIZE_MAP[presenceFontLevel] || PRESENCE_FONT_SIZE_MAP[PRESENCE_FONT_DEFAULT];
+
+      document.documentElement.style.setProperty('--presence-location-size', `${sizes.location}px`);
+      document.documentElement.style.setProperty('--presence-members-size',  `${sizes.members}px`);
+
+      if (els.presenceFontMinus) els.presenceFontMinus.disabled = (presenceFontLevel <= PRESENCE_FONT_MIN);
+      if (els.presenceFontPlus)  els.presenceFontPlus.disabled  = (presenceFontLevel >= PRESENCE_FONT_MAX);
+    }
+
+    function changePresenceFontLevel(delta) {
+      const next = clamp(presenceFontLevel + delta, PRESENCE_FONT_MIN, PRESENCE_FONT_MAX);
+      if (next === presenceFontLevel) return;
+      presenceFontLevel = next;
+      savePresenceFontLevel();
+      applyPresenceFontLevel();
+    }
+
+    function loadButtonSizeLevel() {
+      try {
+        const saved = Number(localStorage.getItem(BUTTON_SIZE_LEVEL_KEY));
+        buttonSizeLevel = (Number.isInteger(saved) && saved >= BUTTON_SIZE_MIN && saved <= BUTTON_SIZE_MAX)
+          ? saved
+          : BUTTON_SIZE_DEFAULT;
+      } catch (_) {
+        buttonSizeLevel = BUTTON_SIZE_DEFAULT;
+      }
+    }
+
+    function saveButtonSizeLevel() {
+      try { localStorage.setItem(BUTTON_SIZE_LEVEL_KEY, String(buttonSizeLevel)); } catch (_) {}
+    }
+
+    function applyButtonSizeLevel() {
+      const sizes = BUTTON_SIZE_MAP[buttonSizeLevel] || BUTTON_SIZE_MAP[BUTTON_SIZE_DEFAULT];
+
+      document.documentElement.style.setProperty('--button-font-size',      `${sizes.font}px`);
+      document.documentElement.style.setProperty('--button-min-height',     `${sizes.minHeight}px`);
+      document.documentElement.style.setProperty('--button-padding-y',      `${sizes.py}px`);
+      document.documentElement.style.setProperty('--button-padding-x',      `${sizes.px}px`);
+      document.documentElement.style.setProperty('--button-min-col-width',  `${sizes.minCol}px`);
+
+      if (els.buttonSizeMinus) els.buttonSizeMinus.disabled = (buttonSizeLevel <= BUTTON_SIZE_MIN);
+      if (els.buttonSizePlus)  els.buttonSizePlus.disabled  = (buttonSizeLevel >= BUTTON_SIZE_MAX);
+    }
+
+    function changeButtonSizeLevel(delta) {
+      const next = clamp(buttonSizeLevel + delta, BUTTON_SIZE_MIN, BUTTON_SIZE_MAX);
+      if (next === buttonSizeLevel) return;
+      buttonSizeLevel = next;
+      saveButtonSizeLevel();
+      applyButtonSizeLevel();
+    }
+
+    function reloadUiPreferences() {
+      loadPresenceFontLevel();
+      applyPresenceFontLevel();
+      loadButtonSizeLevel();
+      applyButtonSizeLevel();
+    }
+
+    function setHeader(titleJa, titleEn, iconType = null) {
+      if (!els.title) return;
+
+      els.title.innerHTML = formatBilingualLines(titleJa, titleEn);
+
+      if (!els.titleStatusIcon) return;
+
+      if (!iconType) {
+        els.titleStatusIcon.innerHTML = '';
+        els.titleStatusIcon.classList.add('hidden');
+        return;
+      }
+
+      let iconHtml = '';
+      if (iconType === 'saving') {
+        iconHtml = `<svg viewBox="0 0 24 24" style="width:28px;height:28px;color:var(--sub);animation:spin 1s linear infinite;"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>`;
+      } else if (iconType === 'success') {
+        iconHtml = `<svg viewBox="0 0 24 24" style="width:36px;height:36px;color:var(--ok);fill:currentColor;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
+      } else if (iconType === 'error') {
+        iconHtml = `<svg viewBox="0 0 24 24" style="width:36px;height:36px;color:var(--danger);fill:currentColor;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
+      }
+
+      els.titleStatusIcon.innerHTML = iconHtml;
+      els.titleStatusIcon.classList.toggle('hidden', !iconHtml);
+    }
+
+    function showSelectedUser(user) {
+      if (!els.buttonSizeControls || !els.selectedUserChipContainer) return;
+
+      if (!user) {
+        els.buttonSizeControls.classList.remove('hidden');
+        setSelectedUserChipHidden(true);
+        return;
+      }
+
+      els.buttonSizeControls.classList.add('hidden');
+      setSelectedUserChipHidden(false);
+
+      els.selectedUserChip.innerHTML = formatBilingualInline(user.nameJa, user.nameEn);
+
+      const colorMap = getUserLocationColorMap();
+      const userColor = colorMap.get(user.username);
+
+      els.selectedUserChip.style.backgroundColor = '';
+      els.selectedUserChip.classList.remove('secondary');
+
+      if (userColor) {
+        els.selectedUserChip.style.backgroundColor = userColor;
+      } else {
+        els.selectedUserChip.classList.add('secondary');
+      }
+    }
+
+    function hideResultView() {
+      els.resultView.classList.add('hidden');
+      els.buttonGrid.classList.remove('hidden');
+      hideSavingPresenceView();
+      els.resultCard.classList.add('hidden');
+      hideResultActionButton();
+    }
+
+    // onclick プロパティの上書きを避け、addEventListener + 都度解除で管理
+    function showResultActionButton(onClick) {
+      els.resultActions.classList.remove('hidden');
+      const handler = () => {
+        playTapSound();
+        onClick();
+      };
+      els.resultOkBtn._actionHandler = handler;
+      els.resultOkBtn.addEventListener('click', handler);
+    }
+
+    function hideResultActionButton() {
+      els.resultActions.classList.add('hidden');
+      if (els.resultOkBtn._actionHandler) {
+        els.resultOkBtn.removeEventListener('click', els.resultOkBtn._actionHandler);
+        els.resultOkBtn._actionHandler = null;
+      }
+    }
+
+    function clearSavingPresenceLocationTimer() {
+      if (savingPresenceLocationTimer) {
+        clearTimeout(savingPresenceLocationTimer);
+        savingPresenceLocationTimer = null;
+      }
+    }
+
+    function resetSavingPresenceGroupFade() {
+      stopElementAnimations(els.savingPresenceGroup);
+    }
+
+    function fadeOutSavingPresenceGroup() {
+      if (!els.savingPresenceGroup) return null;
+
+      stopElementAnimations(els.savingPresenceGroup);
+
+      const endTransform = 'translateY(-4px) scale(0.985)';
+      const anim = startElementAnimation(
+        els.savingPresenceGroup,
+        [
+          { opacity: 1, transform: 'translateY(0) scale(1)' },
+          { opacity: 0, transform: endTransform }
+        ],
+        {
+          duration: CHIP_ANIMATION.flight.durationMs,
+          easing: CHIP_ANIMATION.flight.easing,
+          fill: 'forwards'
+        },
+        () => {
+          els.savingPresenceGroup.style.opacity = '0';
+          els.savingPresenceGroup.style.transform = endTransform;
+        }
+      );
+
+      return anim;
+    }
+
+    function setSavingPresenceLocationPending(isPending) {
+      if (!els.savingPresenceLocationName) return;
+      const locationRow = els.savingPresenceLocationName.closest('.savingPresenceLocation');
+      if (!locationRow) return;
+      locationRow.classList.toggle('is-pending', !!isPending);
+    }
+
+    function revealSavingPresenceLocation(delayMs = 0) {
+      clearSavingPresenceLocationTimer();
+
+      if (delayMs > 0) {
+        savingPresenceLocationTimer = setTimeout(() => {
+          setSavingPresenceLocationPending(false);
+          savingPresenceLocationTimer = null;
+        }, delayMs);
+      } else {
+        savingPresenceLocationTimer = setTimeout(() => {
+          setSavingPresenceLocationPending(false);
+          savingPresenceLocationTimer = null;
+        }, 0);
+      }
+    }
+
+    function hideSavingPresenceView() {
+      clearSavingPresenceLocationTimer();
+      resetSavingPresenceGroupFade();
+      setSavingPresenceLocationPending(true);
+      if (els.savingPresenceView) els.savingPresenceView.classList.add('hidden');
+    }
+
+    function showSavingPresenceView({
+      user,
+      location,
+      holdLocation = false,
+      revealLocationAfterMs = 0
+    }) {
+      if (!els.savingPresenceView) return;
+
+      resetSavingPresenceGroupFade();
+
+      els.buttonGrid.classList.add('hidden');
+      els.resultView.classList.remove('hidden');
+      els.resultCard.classList.add('hidden');
+      els.savingPresenceView.classList.remove('hidden');
+      hideResultActionButton();
+
+      const color = normalizeHexColor(location && location.color) || getDefaultAccentColor();
+      stopElementAnimations(els.savingPresenceChip);
+
+      if (els.savingPresenceLocationName) {
+        els.savingPresenceLocationName.innerHTML = renderSavingLocationHtml(location);
+      }
+      if (els.savingPresenceChip) {
+        els.savingPresenceChip.innerHTML = formatBilingualInline(user && user.nameJa, user && user.nameEn);
+        els.savingPresenceChip.style.backgroundColor = color;
+      }
+
+      setSavingPresenceLocationPending(!!holdLocation);
+
+      if (holdLocation) {
+        revealSavingPresenceLocation(revealLocationAfterMs);
+      } else {
+        clearSavingPresenceLocationTimer();
+      }
+    }
+
+    function showResultView({
+      ok = true,
+      locationJa = '',
+      locationEn = '',
+      nameJa = '',
+      nameEn = '',
+      subJa = '',
+      subEn = '',
+      cardBg = '',
+      statusError = '',
+      inline = false,
+      subIsDanger = false
+    }) {
+      els.buttonGrid.classList.add('hidden');
+      els.resultView.classList.remove('hidden');
+      hideSavingPresenceView();
+      els.resultCard.classList.remove('hidden');
+
+      els.resultStatus.className = 'resultStatus ' + (statusError ? 'error' : 'hidden');
+      if (typeof statusError === 'string' && statusError.includes('<br>')) {
+        const [statusJa, statusEn] = statusError.split('<br>');
+        els.resultStatus.innerHTML = formatBilingualLines(statusJa || '', statusEn || '');
+      } else {
+        els.resultStatus.innerHTML = statusError;
+      }
+
+      if (inline) {
+        els.resultName.innerHTML     = formatBilingualInline(nameJa, nameEn);
+        els.resultLocation.innerHTML = formatBilingualInline(locationJa, locationEn);
+      } else {
+        els.resultName.innerHTML     = formatBilingualLines(nameJa, nameEn);
+        els.resultLocation.innerHTML = formatBilingualLines(locationJa, locationEn);
+      }
+
+      if (subJa || subEn) {
+        els.resultSub.classList.remove('hidden');
+        els.resultSub.classList.toggle('resultSub--danger', !!subIsDanger);
+        els.resultSub.textContent = `${subJa}${subJa && subEn ? '\n\n' : ''}${subEn}`;
+      } else {
+        els.resultSub.classList.add('hidden');
+        els.resultSub.classList.remove('resultSub--danger');
+        els.resultSub.textContent = '';
+      }
+
+      // getDefaultAccentColor() を共通関数として使用（重複実装を排除）
+      const defaultBg = getDefaultAccentColor();
+
+      if (ok) {
+        const bg     = normalizeHexColor(cardBg) || defaultBg;
+        const border = adjustHexColor(bg, -24)   || bg;
+
+        els.resultCard.style.background    = bg;
+        els.resultCard.style.borderColor   = border;
+        els.resultCard.style.boxShadow     = '0 10px 24px rgba(0,0,0,0.12)';
+        // CSS カスタムプロパティ経由で色値を参照
+        els.resultName.style.color         = 'var(--result-ok-text)';
+        els.resultLocation.style.color     = 'var(--result-ok-text)';
+        els.resultSub.style.color          = 'var(--result-ok-text)';
+      } else {
+        els.resultCard.style.background    = 'var(--result-error-bg)';
+        els.resultCard.style.borderColor   = 'var(--result-error-border)';
+        els.resultCard.style.boxShadow     = 'var(--result-error-shadow)';
+        els.resultName.style.color         = 'var(--result-error-text)';
+        els.resultLocation.style.color     = 'var(--result-error-text)';
+        els.resultSub.style.color          = subIsDanger
+          ? 'var(--danger)'
+          : 'var(--result-error-sub)';
+      }
+    }
+
+    function setButtons(items, onClick, opts = {}) {
+      const { addBackButton = false, type = 'user' } = opts;
+      els.buttonGrid.innerHTML = '';
+      els.buttonGrid.dataset.viewType = type;
+
+      const fragment        = document.createDocumentFragment();
+      const colorMap        = (type === 'user') ? getUserLocationColorMap() : null;
+
+      items.forEach(item => {
+        const btn = document.createElement('button');
+        btn.type      = 'button';
+        btn.className = 'btn';
+
+        const mainLineHtml = (type === 'location')
+          ? renderLocationButtonMainLineHtml(item)
+          : escapeHtml(item.ja || item.nameJa);
+
+        btn.innerHTML = `<span class="btn-main-line">${mainLineHtml}</span>` +
+                        `<span class="btn-sub-line en-text">${escapeHtml(item.en || item.nameEn)}</span>`;
+
+        if (type === 'location') {
+          btn.dataset.locationId = item.id || '';
+          const bg = normalizeHexColor(item.color);
+          if (bg) btn.style.backgroundColor = bg;
+        } else if (type === 'user') {
+          btn.dataset.username = item.username || '';
+          const bg = colorMap.get(item.username);
+          if (bg) {
+            btn.style.backgroundColor = bg;
+          } else {
+            btn.classList.add('secondary');
+          }
+        }
+
+        attachPressFeedback(btn);
+        btn.addEventListener('click', () => {
+          const rect = getRectFromElement(btn);
+          if (type === 'user') {
+            lastSelectedUserButtonRect       = rect;
+            lastSelectedUserButtonStartWidth = measureTwoLineButtonChipStartWidth(btn);
+          }
+          playTapSound();
+          onClick(item);
+        });
+        fragment.appendChild(btn);
+      });
+
+      if (addBackButton) {
+        const back = document.createElement('button');
+        back.type      = 'button';
+        back.className = 'btn secondary';
+        back.innerHTML = '<span class="btn-main-line">戻る</span><span class="btn-sub-line en-text">Back</span>';
+        attachPressFeedback(back);
+        back.addEventListener('click', () => {
+          playTapSound();
+          renderUserSelection();
+        });
+        fragment.appendChild(back);
+      }
+
+      els.buttonGrid.appendChild(fragment);
+    }
+
+    function renderPresence() {
+      els.presenceList.innerHTML = '';
+      const fragment      = document.createDocumentFragment();
+      const defaultAccent = getDefaultAccentColor();
+
+      const colorMap = new Map((appData.locations || []).map(l => [l.id, l.color || '']));
+      const iconMap  = new Map((appData.locations || []).map(l => [l.id, l.icon  || '']));
+
+      (appData.presence || []).forEach(group => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'presenceGroup';
+        wrapper.dataset.locationId = group.locationId || '';
+
+        const title = document.createElement('div');
+        title.className = 'presenceLocation';
+
+        const locationColor = normalizeHexColor(colorMap.get(group.locationId));
+        const locationIcon  = iconMap.get(group.locationId) || '';
+        const memberCount   = group.members ? group.members.length : 0;
+
+        title.innerHTML =
+          `<span class="loc-name">${renderPresenceLocationHtml(group.locationJa, group.locationEn, locationIcon, locationColor || defaultAccent)}</span>` +
+          `<span class="loc-count">${memberCount}</span>`;
+
+        wrapper.appendChild(title);
+
+        if (group.members && group.members.length > 0) {
+          const members = document.createElement('div');
+          members.className = 'presenceMembers';
+
+          group.members.forEach(m => {
+            const chip = document.createElement('span');
+            chip.className = 'nameChip nameChip--presence presenceMemberChip';
+            chip.dataset.username = m.username || '';
+            chip.innerHTML = formatBilingualInline(m.nameJa, m.nameEn);
+            chip.style.backgroundColor = locationColor || defaultAccent;
+            members.appendChild(chip);
+          });
+
+          wrapper.appendChild(members);
+        }
+
+        fragment.appendChild(wrapper);
+      });
+
+      els.presenceList.appendChild(fragment);
+    }
+
+    function updatePresenceIfChanged(presence) {
+      const signature = getPresenceSignature(presence);
+      if (signature === lastPresenceJson) return;
+
+      lastPresenceJson    = signature;
+      appData.presence    = presence || [];
+      // presence 更新時にキャッシュを無効化
+      invalidateUserLocationColorCache();
+      renderPresence();
+      refreshUserButtonsIfNeeded();
+    }
+
+    function fetchPresenceNow() {
+      if (isPresenceFetchRunning) return;
+      isPresenceFetchRunning = true;
+      const requestVersion = presenceFetchVersion;
+
+      google.script.run
+        .withSuccessHandler(presence => {
+          isPresenceFetchRunning = false;
+          if (requestVersion !== presenceFetchVersion) return;
+          updatePresenceIfChanged(presence);
+        })
+        .withFailureHandler(err => {
+          isPresenceFetchRunning = false;
+          if (requestVersion !== presenceFetchVersion) return;
+          console.warn('getPresenceData failed', err);
+        })
+        .getPresenceData();
+    }
+
+    function startPresencePolling() {
+      if (presencePollTimer) return;
+      presencePollTimer = setInterval(fetchPresenceNow, POLL_INTERVAL_MS);
+    }
+
+    function stopPresencePolling() {
+      if (!presencePollTimer) return;
+      clearInterval(presencePollTimer);
+      presencePollTimer = null;
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        reloadUiPreferences();
+        fetchPresenceNow();
+        startPresencePolling();
+      } else {
+        stopPresencePolling();
+      }
+    }
+
+    function resetSelectionScrollPosition() {
+      if (els.buttonGrid) els.buttonGrid.scrollTo({ top: 0, behavior: 'auto' });
+      if (els.resultView) els.resultView.scrollTo({ top: 0, behavior: 'auto' });
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+
+    function scheduleReset(ms = 1800) {
+      clearResetTimer();
+      resetTimer = setTimeout(renderUserSelection, ms);
+    }
+
+    function renderUserSelection() {
+      clearResetTimer();
+
+      selectedUser = null;
+      isUiLocked   = false;
+      els.buttonGrid.classList.remove('is-busy');
+      showSelectedUser(null);
+      hideResultView();
+      renderPresence();
+
+      setHeader('名前を選択', 'Select Name');
+      setButtons(appData.users, user => {
+        selectedUser = user;
+        renderLocationSelection();
+      }, { type: 'user' });
+
+      resetSelectionScrollPosition();
+    }
+
+    function renderLocationSelection() {
+      clearResetTimer();
+
+      isUiLocked = false;
+      els.buttonGrid.classList.remove('is-busy');
+      showSelectedUser(selectedUser);
+      hideResultView();
+
+      setHeader('場所を選択', 'Select Location');
+      setButtons(appData.locations, submitLocation, { addBackButton: true, type: 'location' });
+
+      resetSelectionScrollPosition();
+      scheduleAnimationStart(() => animateSelectedUserChip());
+      scheduleReset(10000);
+    }
+
+    function submitLocation(location) {
+      if (isUiLocked || !selectedUser || !location) return;
+      clearResetTimer();
+
+      isUiLocked = true;
+      els.buttonGrid.classList.add('is-busy');
+      presenceFetchVersion += 1;
+      stopPresencePolling();
+
+      setHeader('送信中です', 'Saving...', 'saving');
+
+      const selectedChipRect = els.selectedUserChip ? getRectFromElement(els.selectedUserChip) : null;
+      const selectedChipHtml = els.selectedUserChip
+        ? els.selectedUserChip.innerHTML
+        : formatBilingualInline(selectedUser.nameJa, selectedUser.nameEn);
+      const selectedChipBg   = els.selectedUserChip
+        ? (els.selectedUserChip.style.backgroundColor || getComputedStyle(els.selectedUserChip).backgroundColor || getDefaultAccentColor())
+        : getDefaultAccentColor();
+
+      showSavingPresenceView({
+        user:     selectedUser,
+        location,
+        holdLocation:         true,
+        revealLocationAfterMs: SAVING_LOCATION_REVEAL_AFTER_START_MS
+      });
+
+      scheduleAnimationStart(() => {
+        animateResultCardArrival({
+          originChipRect:       selectedChipRect,
+          originChipHtml:       selectedChipHtml,
+          originChipBackground: selectedChipBg,
+          color:                location.color
+        });
+      });
+
+      setSelectedUserChipHidden(true);
+
+      const queuedTask = {
+        username:   selectedUser.username,
+        nameJa:     selectedUser.nameJa,
+        nameEn:     selectedUser.nameEn,
+        locationId: location.id,
+        locationJa: location.ja,
+        locationEn: location.en,
+        icon:       location.icon,
+        color:      location.color
+      };
+
+      syncQueue.push(queuedTask);
+      processQueue();
+    }
+
+    function processQueue() {
+      if (isQueueProcessing || isQueuePaused || syncQueue.length === 0) return;
+
+      isQueueProcessing = true;
+      const task      = syncQueue[0];
+      const requestId = ++saveRequestSeq;
+      activeSaveRequestId = requestId;
+
+      clearSaveWatchdogTimer();
+      saveWatchdogTimer = setTimeout(() => handleSaveTimeout(task, requestId), SAVE_TIMEOUT_MS);
+
+      google.script.run
+        .withSuccessHandler(res => {
+          if (requestId !== activeSaveRequestId) return;
+          clearActiveSaveRequest();
+
+          syncQueue.shift();
+          isQueueProcessing = false;
+          updatePresenceIfChanged(res.presence);
+
+          if (selectedUser && selectedUser.username === task.username && isUiLocked) {
+            setHeader('記録しました', 'Saved', 'success');
+
+            setSelectedUserChipHidden(true);
+
+            showSavingPresenceView({
+              user:     { nameJa: task.nameJa, nameEn: task.nameEn },
+              location: { ja: task.locationJa, en: task.locationEn, icon: task.icon, color: task.color },
+              holdLocation: false
+            });
+
+            scheduleAnimationStart(() => {
+              if (animateSavedChipToPresence(task)) {
+                fadeOutSavingPresenceGroup();
+              }
+            });
+
+            scheduleReset(CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs + 80);
+          }
+
+          startPresencePolling();
+          processQueue();
+        })
+        .withFailureHandler(err => {
+          if (requestId !== activeSaveRequestId) return;
+          clearActiveSaveRequest();
+
+          isQueueProcessing = false;
+          syncQueue.shift();
+          isQueuePaused = true;
+          isUiLocked    = true;
+
+          clearResetTimer();
+
+          const msg            = extractErrorText(err);
+          const isLockConflict = (msg.reason === 'lock');
+
+          setHeader('エラーが発生しました', 'Error', 'error');
+          setSelectedUserChipHidden(true);
+
+          showResultView({
+            ok: false,
+            statusError: isLockConflict
+              ? '今回は保存されませんでした<br>Not saved this time'
+              : '保存に失敗しました<br>Failed to save',
+            nameJa:     task.nameJa,
+            nameEn:     task.nameEn,
+            locationJa: task.locationJa,
+            locationEn: task.locationEn,
+            subJa: isLockConflict
+              ? 'ほかの保存処理と重なったため、今回は保存されませんでした。［戻る］を押して、少し待ってからもう一度選択してください。'
+              : msg.ja,
+            subEn: isLockConflict
+              ? 'This action was not saved because another save was in progress. Press [Back], wait a moment, and then select again.'
+              : msg.en,
+            inline:     true,
+            subIsDanger: isLockConflict
+          });
+
+          startPresencePolling();
+
+          showResultActionButton(() => {
+            isQueuePaused = false;
+            isUiLocked    = false;
+            renderUserSelection();
+            processQueue();
+          });
+        })
+        .saveLocation(task.username, task.locationId, appData.terminalName);
+    }
+
+    function showInitializationError({
+      headerJa,
+      headerEn,
+      nameJa,
+      nameEn,
+      locationJa = '',
+      locationEn = '',
+      subJa = '',
+      subEn = ''
+    }) {
+      setHeader(headerJa, headerEn, 'error');
+      showSelectedUser(null);
+      showResultView({ ok: false, nameJa, nameEn, locationJa, locationEn, subJa, subEn });
+    }
+
+    window.addEventListener('load', () => {
+      initDOM();
+      bindStaticPressFeedback();
+      bindStaticControlEvents();
+
+      loadPresenceFontLevel();
+      applyPresenceFontLevel();
+
+      loadButtonSizeLevel();
+      applyButtonSizeLevel();
+
+      if (INJECTED_DATA && !INJECTED_DATA.error) {
+        appData          = INJECTED_DATA;
+        lastPresenceJson = getPresenceSignature(appData.presence || []);
+        renderUserSelection();
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // pageshow は BFCache 復元時のみ処理する。通常の復帰は visibilitychange でカバー済み
+        window.addEventListener('pageshow', e => {
+          if (e.persisted) reloadUiPreferences();
+        });
+
+        window.addEventListener('beforeunload', () => {
+          clearSaveWatchdogTimer();
+          stopPresencePolling();
+        });
+
+        if (document.visibilityState === 'visible') {
+          fetchPresenceNow();
+          startPresencePolling();
+        }
+      } else {
+        const rawError = INJECTED_DATA && INJECTED_DATA.error
+          ? String(INJECTED_DATA.error)
+          : 'データが見つかりません';
+
+        // より具体的な文字列を先に判定する
+        if (rawError.includes('current_presence: duplicate username')) {
+          const duplicatedId = rawError.split(':').pop().trim() || '不明';
+          showInitializationError({
+            headerJa:   '設定エラー',
+            headerEn:   'Configuration Error',
+            nameJa:     'current_presence に',
+            nameEn:     '重複した username があります。',
+            locationJa: `エラー対象: ${duplicatedId}`,
+            subJa:      '【解決方法】\ncurrent_presence シートを確認し、\n同じ username の重複行を解消してください。\n必要なら logs_ シートから再構築してください。'
+          });
+        } else if (rawError.includes('duplicate username')) {
+          const duplicatedId = rawError.split(':').pop().trim() || '不明';
+          showInitializationError({
+            headerJa:   '設定エラー',
+            headerEn:   'Configuration Error',
+            nameJa:     'メンバーのID（username）が',
+            nameEn:     '重複しています。',
+            locationJa: `エラー対象: ${duplicatedId}`,
+            subJa:      '【解決方法】\nスプレッドシートの users シートを開き、\n全員のIDが別々になるように修正してから\nこの画面を再読み込み（リロード）してください。'
+          });
+        } else if (rawError.includes('duplicate location_id')) {
+          const duplicatedId = rawError.split(':').pop().trim() || '不明';
+          showInitializationError({
+            headerJa:   '設定エラー',
+            headerEn:   'Configuration Error',
+            nameJa:     '場所のID（location_id）が',
+            nameEn:     '重複しています。',
+            locationJa: `エラー対象: ${duplicatedId}`,
+            subJa:      '【解決方法】\nスプレッドシートの locations シートを開き、\n各場所のIDが重複しないように修正してから\nこの画面を再読み込み（リロード）してください。'
+          });
+        } else {
+          showInitializationError({
+            headerJa: '初期化に失敗しました',
+            headerEn: 'Initialization Failed',
+            nameJa:   'スプレッドシートの',
+            nameEn:   '読み込みエラー',
+            subJa:    `【エラー詳細】\n${rawError}\n\nシステム管理者に連絡するか、\n画面を再読み込みしてください。`
+          });
+        }
+      }
+    });
+  </script>
+  <? } ?>
+</body>
+</html>
