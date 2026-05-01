@@ -72,10 +72,6 @@ Access control depends on the Google Apps Script web app deployment settings. If
 
 アクセス制御は、Google Apps Script の Web アプリのデプロイ設定に依存します。「URLを知っている全員」がアクセスできる設定にすると、URLを入手した第三者が在室状況を更新できる可能性があります。
 
-Do not include real personal data, private email addresses, production spreadsheet IDs, or deployed web app URLs in public templates or documentation.
-
-公開するテンプレートやドキュメントには、実在の個人情報、非公開のメールアドレス、実運用中のスプレッドシートID、デプロイ済み Web アプリのURLを含めないでください。
-
 The app may load external resources such as web fonts, icon fonts, and a QR-code generation service. If your environment requires fully internal operation, review or replace these external dependencies.
 
 このアプリは、Webフォント、アイコンフォント、QRコード生成サービスなどの外部リソースを読み込む場合があります。完全に内部ネットワーク内で運用する必要がある場合は、これらの外部依存を確認し、必要に応じて置き換えてください。
