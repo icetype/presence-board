@@ -1194,6 +1194,7 @@
     function initDOM() {
       els.title                    = document.getElementById('title');
       els.titleStatusIcon          = document.getElementById('titleStatusIcon');
+      els.leftArea                 = document.querySelector('.leftArea');
       els.buttonSizeControls       = document.getElementById('buttonSizeControls');
       els.selectedUserChipContainer= document.getElementById('selectedUserChipContainer');
       els.selectedUserChip         = document.getElementById('selectedUserChip');
@@ -1205,6 +1206,7 @@
       els.savingPresenceLocationName = document.getElementById('savingPresenceLocationName');
       els.savingPresenceChip       = document.getElementById('savingPresenceChip');
       els.resultCard               = document.getElementById('resultCard');
+      els.presencePanel            = document.querySelector('.presencePanel');
       els.presenceList             = document.getElementById('presenceList');
       els.resultStatus             = document.getElementById('resultStatus');
       els.resultName               = document.getElementById('resultName');
@@ -1243,6 +1245,7 @@
       syncQueue.shift();
       isQueuePaused = true;
       isUiLocked = true;
+      if (task) task.cancelPresenceScroll = true;
 
       clearResetTimer();
 
@@ -1259,6 +1262,7 @@
         subEn: 'No response was received within the expected time. Press [Back] to return.\n\nThe save may still have completed on the server, so also check the status panel on the right.',
         inline: true
       });
+      scrollLeftPanelForError();
 
       startPresencePolling();
       fetchPresenceNow();
@@ -1542,6 +1546,36 @@
       return { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     }
 
+    function isPresencePanelBelowMainFlow() {
+      return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+    }
+
+    function scrollPresencePanelForSave() {
+      if (!isPresencePanelBelowMainFlow() || !els.presencePanel) {
+        return Promise.resolve();
+      }
+
+      try {
+        els.presencePanel.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      } catch (_) {
+        els.presencePanel.scrollIntoView();
+      }
+
+      return new Promise(resolve => {
+        window.setTimeout(resolve, 420);
+      });
+    }
+
+    function scrollLeftPanelForError() {
+      if (!isPresencePanelBelowMainFlow() || !els.leftArea) return;
+
+      try {
+        els.leftArea.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+      } catch (_) {
+        els.leftArea.scrollIntoView();
+      }
+    }
+
     function measureNaturalTextWidth(el) {
       if (!el) return 0;
 
@@ -1796,6 +1830,24 @@
       return { flightAnim, landingAnim };
     }
 
+    function waitForGhostArrivalCompletion(launched) {
+      if (!launched) return Promise.resolve();
+      const waits = [launched.flightAnim, launched.landingAnim]
+        .filter(anim => anim && anim.finished)
+        .map(anim => anim.finished.catch(() => {}));
+
+      if (waits.length > 0) {
+        return Promise.all(waits).then(() => {});
+      }
+
+      return new Promise(resolve => {
+        window.setTimeout(
+          resolve,
+          CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs
+        );
+      });
+    }
+
     function animateSelectedUserChip() {
       if (!lastSelectedUserButtonRect || !els.selectedUserChip) return;
 
@@ -1833,10 +1885,10 @@
     }
 
     function animateResultCardArrival(task) {
-      if (!task || !task.originChipRect || !els.savingPresenceChip) return;
+      if (!task || !task.originChipRect || !els.savingPresenceChip) return null;
 
       const toRect = getRectFromElement(els.savingPresenceChip);
-      if (!toRect) return;
+      if (!toRect) return null;
 
       const m = getGhostChipMetrics(els.savingPresenceChip);
 
@@ -1865,6 +1917,8 @@
       if (!launched) {
         stopElementAnimations(els.savingPresenceChip);
       }
+
+      return launched;
     }
 
     function getPresenceChipElement(username) {
@@ -1872,23 +1926,44 @@
       return els.presenceList.querySelector(`.presenceMemberChip[data-username="${CSS.escape(username)}"]`);
     }
 
+    function getPresenceChipSnapshot(username) {
+      const chip = getPresenceChipElement(username);
+      const rect = getRectFromElement(chip);
+      if (!chip || !rect) return null;
+
+      const metrics = getGhostChipMetrics(chip);
+      const bg = chip.style.backgroundColor || getComputedStyle(chip).backgroundColor || getDefaultAccentColor();
+
+      return {
+        rect,
+        html: chip.innerHTML,
+        background: bg,
+        fontSizePx: metrics.fontSizePx,
+        paddingY: metrics.paddingY,
+        paddingX: metrics.paddingX
+      };
+    }
+
     function animateSavedChipToPresence(task) {
       if (!task || !task.username || !els.savingPresenceChip) return false;
 
-      const fromRect   = getRectFromElement(els.savingPresenceChip);
+      const sourceSnapshot = task.previousPresenceChipSnapshot || null;
+      const fromRect   = sourceSnapshot
+        ? sourceSnapshot.rect
+        : getRectFromElement(els.savingPresenceChip);
       const targetChip = getPresenceChipElement(task.username);
       const toRect     = getRectFromElement(targetChip);
 
       if (!fromRect || !toRect) return false;
 
-      const m = getGhostChipMetrics(els.savingPresenceChip);
+      const m = sourceSnapshot || getGhostChipMetrics(els.savingPresenceChip);
 
       const launched = launchGhostWithLandingPop({
         fromRect,
         toRect,
         ghostOptions: {
-          html:       els.savingPresenceChip.innerHTML,
-          background: task.color || els.savingPresenceChip.style.backgroundColor || getDefaultAccentColor(),
+          html:       (sourceSnapshot && sourceSnapshot.html) || els.savingPresenceChip.innerHTML,
+          background: (sourceSnapshot && sourceSnapshot.background) || task.color || els.savingPresenceChip.style.backgroundColor || getDefaultAccentColor(),
           fontSizePx: m.fontSizePx,
           fontWeight: 400,
           paddingY:   m.paddingY,
@@ -1900,7 +1975,7 @@
           endScaleX: toRect.width  / fromRect.width,
           endScaleY: toRect.height / fromRect.height
         },
-        sourceEl: els.savingPresenceChip,
+        sourceEl: task.previousPresenceChipSnapshot ? null : els.savingPresenceChip,
         targetEl: targetChip,
         clearSourceAnimation: false
       });
@@ -1994,6 +2069,10 @@
 
       els.title.innerHTML = formatBilingualLines(titleJa, titleEn);
 
+      setHeaderStatusIcon(iconType);
+    }
+
+    function setHeaderStatusIcon(iconType = null) {
       if (!els.titleStatusIcon) return;
 
       if (!iconType) {
@@ -2089,8 +2168,9 @@
       const anim = startElementAnimation(
         els.savingPresenceGroup,
         [
-          { opacity: 1, transform: 'translateY(0) scale(1)' },
-          { opacity: 0, transform: endTransform }
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.72 },
+          { opacity: 0, transform: endTransform, offset: 1 }
         ],
         {
           duration: CHIP_ANIMATION.flight.durationMs,
@@ -2477,16 +2557,10 @@
         revealLocationAfterMs: SAVING_LOCATION_REVEAL_AFTER_START_MS
       });
 
-      scheduleAnimationStart(() => {
-        animateResultCardArrival({
-          originChipRect:       selectedChipRect,
-          originChipHtml:       selectedChipHtml,
-          originChipBackground: selectedChipBg,
-          color:                location.color
-        });
+      let resolvePresenceScrollReady = () => {};
+      const presenceScrollPromise = new Promise(resolve => {
+        resolvePresenceScrollReady = resolve;
       });
-
-      setSelectedUserChipHidden(true);
 
       const queuedTask = {
         username:   selectedUser.username,
@@ -2496,8 +2570,29 @@
         locationJa: location.ja,
         locationEn: location.en,
         icon:       location.icon,
-        color:      location.color
+        color:      location.color,
+        presenceScrollPromise,
+        cancelPresenceScroll: false
       };
+
+      scheduleAnimationStart(() => {
+        const launched = animateResultCardArrival({
+          originChipRect:       selectedChipRect,
+          originChipHtml:       selectedChipHtml,
+          originChipBackground: selectedChipBg,
+          color:                location.color
+        });
+
+        waitForGhostArrivalCompletion(launched).then(() => {
+          if (queuedTask.cancelPresenceScroll) {
+            resolvePresenceScrollReady();
+            return;
+          }
+          scrollPresencePanelForSave().then(resolvePresenceScrollReady);
+        });
+      });
+
+      setSelectedUserChipHidden(true);
 
       syncQueue.push(queuedTask);
       processQueue();
@@ -2521,30 +2616,38 @@
 
           syncQueue.shift();
           isQueueProcessing = false;
-          updatePresenceIfChanged(res.presence);
 
-          if (selectedUser && selectedUser.username === task.username && isUiLocked) {
+          const shouldCompleteVisibleTask =
+            selectedUser && selectedUser.username === task.username && isUiLocked;
+          if (shouldCompleteVisibleTask) {
             setHeader('記録しました', 'Saved', 'success');
-
             setSelectedUserChipHidden(true);
-
-            showSavingPresenceView({
-              user:     { nameJa: task.nameJa, nameEn: task.nameEn },
-              location: { ja: task.locationJa, en: task.locationEn, icon: task.icon, color: task.color },
-              holdLocation: false
-            });
-
-            scheduleAnimationStart(() => {
-              if (animateSavedChipToPresence(task)) {
-                fadeOutSavingPresenceGroup();
-              }
-            });
-
-            scheduleReset(CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs + 80);
           }
 
-          startPresencePolling();
-          processQueue();
+          const scrollReady = task.presenceScrollPromise || Promise.resolve();
+          scrollReady.then(() => {
+            task.previousPresenceChipSnapshot = getPresenceChipSnapshot(task.username);
+            updatePresenceIfChanged(res.presence);
+
+            if (shouldCompleteVisibleTask) {
+              showSavingPresenceView({
+                user:     { nameJa: task.nameJa, nameEn: task.nameEn },
+                location: { ja: task.locationJa, en: task.locationEn, icon: task.icon, color: task.color },
+                holdLocation: false
+              });
+
+              scheduleAnimationStart(() => {
+                if (animateSavedChipToPresence(task)) {
+                  fadeOutSavingPresenceGroup();
+                }
+              });
+
+              scheduleReset(CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs + 80);
+            }
+
+            startPresencePolling();
+            processQueue();
+          });
         })
         .withFailureHandler(err => {
           if (requestId !== activeSaveRequestId) return;
@@ -2554,6 +2657,7 @@
           syncQueue.shift();
           isQueuePaused = true;
           isUiLocked    = true;
+          task.cancelPresenceScroll = true;
 
           clearResetTimer();
 
@@ -2581,6 +2685,7 @@
             inline:     true,
             subIsDanger: isLockConflict
           });
+          scrollLeftPanelForError();
 
           startPresencePolling();
 
