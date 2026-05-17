@@ -1584,18 +1584,57 @@
       });
     }
 
-    function scrollPresencePanelForSave() {
-      if (!isPresencePanelBelowMainFlow() || !els.presencePanel) {
+    function getPresenceScrollMargin(targetEl) {
+      const locationEl = targetEl.querySelector ? targetEl.querySelector('.presenceLocation') : null;
+      const lineStyle = locationEl ? window.getComputedStyle(locationEl) : null;
+      const fontSize = lineStyle ? parseFloat(lineStyle.fontSize) : 19;
+      const lineHeight = lineStyle && lineStyle.lineHeight !== 'normal'
+        ? parseFloat(lineStyle.lineHeight)
+        : fontSize * 1.25;
+
+      return Number.isFinite(lineHeight) ? lineHeight : 24;
+    }
+
+    function scrollElementBottomIntoView(targetEl, margin, alsoKeepEl = null, alsoMargin = 0) {
+      const rect = targetEl.getBoundingClientRect();
+      const alsoRect = alsoKeepEl ? alsoKeepEl.getBoundingClientRect() : null;
+      const viewportHeight = window.innerHeight || document.documentElement.clientHeight || 0;
+      const bottomLimit = Math.max(0, viewportHeight - margin);
+      const targetScroll = Math.max(0, rect.bottom - bottomLimit);
+      const alsoBottomLimit = Math.max(0, viewportHeight - alsoMargin);
+      const alsoScroll = alsoRect ? Math.max(0, alsoRect.bottom - alsoBottomLimit) : 0;
+      const targetTopLimit = Math.max(targetScroll, rect.top);
+      const optionalScroll = alsoScroll > targetScroll
+        ? Math.min(alsoScroll, targetTopLimit)
+        : alsoScroll;
+      const nextTop = window.scrollY + Math.max(targetScroll, optionalScroll);
+
+      if (Math.abs(nextTop - window.scrollY) < 1) {
         return Promise.resolve();
       }
 
       try {
-        els.presencePanel.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+        window.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
       } catch (_) {
-        els.presencePanel.scrollIntoView();
+        window.scrollTo(0, Math.max(0, nextTop));
       }
 
-      return waitForScrollSettle(els.presencePanel);
+      return waitForScrollSettle(targetEl);
+    }
+
+    function scrollPresencePanelForSave(task) {
+      if (!isPresencePanelBelowMainFlow() || !els.presencePanel) {
+        return Promise.resolve();
+      }
+
+      const targetGroup = task && task.locationId && window.CSS && CSS.escape
+        ? els.presencePanel.querySelector(`.presenceGroup[data-location-id="${CSS.escape(task.locationId)}"]`)
+        : null;
+      const targetEl = targetGroup || els.presencePanel;
+      const sourceChip = task && task.username ? getPresenceChipElement(task.username) : null;
+      const margin = getPresenceScrollMargin(targetEl);
+
+      return scrollElementBottomIntoView(targetEl, margin, sourceChip, margin);
     }
 
     function scrollLeftPanelForError() {
@@ -1834,6 +1873,53 @@
       return anim;
     }
 
+    function areRectsNearlySame(a, b) {
+      if (!a || !b) return false;
+
+      const centerAX = a.left + a.width / 2;
+      const centerAY = a.top  + a.height / 2;
+      const centerBX = b.left + b.width / 2;
+      const centerBY = b.top  + b.height / 2;
+
+      return Math.abs(centerAX - centerBX) < 4 &&
+             Math.abs(centerAY - centerBY) < 4 &&
+             Math.abs(a.width  - b.width)  < 4 &&
+             Math.abs(a.height - b.height) < 4;
+    }
+
+    function playChipSamePlaceBounce(targetEl) {
+      if (!targetEl) return null;
+
+      stopElementAnimations(targetEl);
+
+      const anim = startElementAnimation(
+        targetEl,
+        [
+          { transform: 'translateY(0)', filter: 'brightness(1)' },
+          { transform: 'translateY(-6px)', filter: 'brightness(1.12) saturate(1.08)', offset: 0.24 },
+          { transform: 'translateY(3px)', filter: 'brightness(1.04)', offset: 0.48 },
+          { transform: 'translateY(-3px)', filter: 'brightness(1.08)', offset: 0.68 },
+          { transform: 'translateY(1px)', filter: 'brightness(1.03)', offset: 0.84 },
+          { transform: 'translateY(0)', filter: 'brightness(1)' }
+        ],
+        {
+          duration: 520,
+          easing:   'cubic-bezier(0.2, 0.8, 0.2, 1)',
+          fill:     'both'
+        },
+        () => {
+          targetEl.style.filter    = '';
+          targetEl.style.transform = '';
+        },
+        () => {
+          targetEl.style.filter    = '';
+          targetEl.style.transform = '';
+        }
+      );
+
+      return anim;
+    }
+
     function launchGhostWithLandingPop({
       fromRect,
       toRect,
@@ -1965,6 +2051,7 @@
 
       const metrics = getGhostChipMetrics(chip);
       const bg = chip.style.backgroundColor || getComputedStyle(chip).backgroundColor || getDefaultAccentColor();
+      const group = chip.closest('.presenceGroup');
 
       return {
         rect,
@@ -1972,7 +2059,8 @@
         background: bg,
         fontSizePx: metrics.fontSizePx,
         paddingY: metrics.paddingY,
-        paddingX: metrics.paddingX
+        paddingX: metrics.paddingX,
+        locationId: group ? (group.dataset.locationId || '') : ''
       };
     }
 
@@ -1987,6 +2075,17 @@
       const toRect     = getRectFromElement(targetChip);
 
       if (!fromRect || !toRect) return false;
+
+      const isSamePresenceLocation =
+        sourceSnapshot &&
+        sourceSnapshot.locationId &&
+        task.locationId &&
+        sourceSnapshot.locationId === task.locationId;
+
+      if (isSamePresenceLocation || (sourceSnapshot && areRectsNearlySame(sourceSnapshot.rect, toRect))) {
+        playChipSamePlaceBounce(targetChip);
+        return true;
+      }
 
       const m = sourceSnapshot || getGhostChipMetrics(els.savingPresenceChip);
 
@@ -2101,10 +2200,6 @@
 
       els.title.innerHTML = formatBilingualLines(titleJa, titleEn);
 
-      setHeaderStatusIcon(iconType);
-    }
-
-    function setHeaderStatusIcon(iconType = null) {
       if (!els.titleStatusIcon) return;
 
       if (!iconType) {
@@ -2197,15 +2292,19 @@
       stopElementAnimations(els.savingPresenceGroup);
 
       const endTransform = 'translateY(-4px) scale(0.985)';
+      const durationMs =
+        CHIP_ANIMATION.flight.durationMs +
+        CHIP_ANIMATION.landing.durationMs -
+        CHIP_ANIMATION.timing.overlapMs;
       const anim = startElementAnimation(
         els.savingPresenceGroup,
         [
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
-          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.72 },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
           { opacity: 0, transform: endTransform, offset: 1 }
         ],
         {
-          duration: CHIP_ANIMATION.flight.durationMs,
+          duration: durationMs,
           easing: CHIP_ANIMATION.flight.easing,
           fill: 'forwards'
         },
@@ -2594,19 +2693,6 @@
         resolvePresenceScrollReady = resolve;
       });
 
-      const queuedTask = {
-        username:   selectedUser.username,
-        nameJa:     selectedUser.nameJa,
-        nameEn:     selectedUser.nameEn,
-        locationId: location.id,
-        locationJa: location.ja,
-        locationEn: location.en,
-        icon:       location.icon,
-        color:      location.color,
-        presenceScrollPromise,
-        cancelPresenceScroll: false
-      };
-
       scheduleAnimationStart(() => {
         const launched = animateResultCardArrival({
           originChipRect:       selectedChipRect,
@@ -2620,11 +2706,24 @@
             resolvePresenceScrollReady();
             return;
           }
-          scrollPresencePanelForSave().then(resolvePresenceScrollReady);
+          scrollPresencePanelForSave(queuedTask).then(resolvePresenceScrollReady);
         });
       });
 
       setSelectedUserChipHidden(true);
+
+      const queuedTask = {
+        username:   selectedUser.username,
+        nameJa:     selectedUser.nameJa,
+        nameEn:     selectedUser.nameEn,
+        locationId: location.id,
+        locationJa: location.ja,
+        locationEn: location.en,
+        icon:       location.icon,
+        color:      location.color,
+        presenceScrollPromise,
+        cancelPresenceScroll: false
+      };
 
       syncQueue.push(queuedTask);
       processQueue();
