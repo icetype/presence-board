@@ -813,9 +813,12 @@
       font-size: 16px;
       font-weight: 600;
       line-height: 1.15;
-      box-shadow: 0 10px 18px rgba(15, 23, 42, 0.16);
+      box-shadow:
+        0 14px 28px rgba(15, 23, 42, 0.24),
+        0 0 0 2px rgba(255, 255, 255, 0.58);
+      filter: brightness(1.04) saturate(1.08);
       transform-origin: center;
-      will-change: transform, opacity;
+      will-change: transform, opacity, filter;
       white-space: nowrap;
     }
 
@@ -1111,7 +1114,7 @@
         durationMs: 400,
         easing: 'cubic-bezier(0.22, 0.8, 0.2, 1)',
         startOpacity: 1.00,
-        endOpacity: 0.1
+        endOpacity: 0.28
       },
       landing: {
         durationMs: 300,
@@ -2025,8 +2028,7 @@
           startScaleX: task.originChipRect.width  / toRect.width,
           startScaleY: task.originChipRect.height / toRect.height,
           endScaleX: 1,
-          endScaleY: 1,
-          endOpacity: 0
+          endScaleY: 1
         },
         sourceEl: els.selectedUserChip,
         targetEl: els.savingPresenceChip
