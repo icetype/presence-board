@@ -1898,24 +1898,22 @@
       const anim = startElementAnimation(
         targetEl,
         [
-          { transform: 'translateY(0)', filter: 'brightness(1)' },
-          { transform: 'translateY(-6px)', filter: 'brightness(1.12) saturate(1.08)', offset: 0.24 },
-          { transform: 'translateY(3px)', filter: 'brightness(1.04)', offset: 0.48 },
-          { transform: 'translateY(-3px)', filter: 'brightness(1.08)', offset: 0.68 },
-          { transform: 'translateY(1px)', filter: 'brightness(1.03)', offset: 0.84 },
-          { transform: 'translateY(0)', filter: 'brightness(1)' }
+          { transform: 'translate(0, 0)' },
+          { transform: 'translate(-2px, -9px)', offset: 0.22 },
+          { transform: 'translate(2px, 4px)', offset: 0.45 },
+          { transform: 'translate(-1px, -5px)', offset: 0.66 },
+          { transform: 'translate(1px, 2px)', offset: 0.84 },
+          { transform: 'translate(0, 0)' }
         ],
         {
-          duration: 520,
+          duration: 620,
           easing:   'cubic-bezier(0.2, 0.8, 0.2, 1)',
           fill:     'both'
         },
         () => {
-          targetEl.style.filter    = '';
           targetEl.style.transform = '';
         },
         () => {
-          targetEl.style.filter    = '';
           targetEl.style.transform = '';
         }
       );
