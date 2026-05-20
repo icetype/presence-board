@@ -2482,10 +2482,10 @@
     }
 
     function fadeOutSavingPresenceGroup() {
-      if (!els.savingPresenceLocation && !els.savingPresenceMembers) return null;
+      if (!els.savingPresenceLocation && !els.savingPresenceChip) return null;
 
       stopElementAnimations(els.savingPresenceLocation);
-      stopElementAnimations(els.savingPresenceMembers);
+      stopElementAnimations(els.savingPresenceChip);
 
       const endTransform = 'translateY(-4px) scale(0.985)';
       const durationMs =
@@ -2507,8 +2507,8 @@
         }
       );
 
-      const membersAnim = startElementAnimation(
-        els.savingPresenceMembers,
+      const nameAnim = startElementAnimation(
+        els.savingPresenceChip,
         [
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
@@ -2521,7 +2521,7 @@
         }
       );
 
-      return membersAnim || locationAnim;
+      return nameAnim || locationAnim;
     }
 
     function setSavingPresenceLocationPending(isPending) {
