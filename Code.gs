@@ -20,7 +20,7 @@ const DATETIME_DISPLAY_FORMAT = 'yyyy/MM/dd HH:mm:ss';
  * Submission control
  ********************/
 // Fail fast rather than building a waiting queue behind a long-running save.
-const LOCK_TRY_TIMEOUT_MS = 250;
+const LOCK_TRY_TIMEOUT_MS = 1000;
 
 /********************
  * Web app entry point
