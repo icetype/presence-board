@@ -2521,21 +2521,7 @@
         }
       );
 
-      const chipAnim = startElementAnimation(
-        els.savingPresenceChip,
-        [
-          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
-          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
-          { opacity: 0, transform: endTransform, offset: 1 }
-        ],
-        {
-          duration: durationMs,
-          easing: CHIP_ANIMATION.flight.easing,
-          fill: 'forwards'
-        }
-      );
-
-      return chipAnim || membersAnim || locationAnim;
+      return membersAnim || locationAnim;
     }
 
     function setSavingPresenceLocationPending(isPending) {
