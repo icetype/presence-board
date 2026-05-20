@@ -1958,7 +1958,9 @@
       const ghost = document.createElement('div');
       ghost.className = 'flyingCardGhost';
       ghost.innerHTML = options.html || '';
-      ghost.style.background = options.background || getDefaultAccentColor();
+      const startBackground = options.startBackground || options.background || getDefaultAccentColor();
+      const endBackground   = options.endBackground || startBackground;
+      ghost.style.background = startBackground;
 
       if (options.fontSizePx) ghost.style.fontSize  = `${options.fontSizePx}px`;
       if (options.fontWeight) ghost.style.fontWeight = String(options.fontWeight);
@@ -2013,12 +2015,21 @@
       ghost.style.opacity   = String(startOpacity);
       ghost.style.visibility= 'visible';
 
+      const keyframes = startBackground !== endBackground
+        ? [
+            { transform: startTransform, opacity: startOpacity, background: startBackground, offset: 0 },
+            { background: startBackground, offset: 0.20 },
+            { background: endBackground,   offset: 0.80 },
+            { transform: endTransform, opacity: endOpacity, background: endBackground, offset: 1 }
+          ]
+        : [
+            { transform: startTransform, opacity: startOpacity, background: startBackground },
+            { transform: endTransform,   opacity: endOpacity,   background: endBackground }
+          ];
+
       const anim = startElementAnimation(
         ghost,
-        [
-          { transform: startTransform, opacity: startOpacity },
-          { transform: endTransform,   opacity: endOpacity   }
-        ],
+        keyframes,
         { duration: durationMs, easing, fill: 'forwards' },
         () => ghost.remove(),
         () => ghost.remove()
@@ -2278,13 +2289,23 @@
       }
 
       const m = sourceSnapshot || getGhostChipMetrics(els.savingPresenceChip);
+      const sourceColor =
+        (sourceSnapshot && sourceSnapshot.background) ||
+        els.savingPresenceChip.style.backgroundColor ||
+        getDefaultAccentColor();
+      const destinationColor =
+        normalizeHexColor(task.color) ||
+        (targetChip && (targetChip.style.backgroundColor || getComputedStyle(targetChip).backgroundColor)) ||
+        getDefaultAccentColor();
 
       const launched = launchGhostWithLandingPop({
         fromRect,
         toRect,
         ghostOptions: {
           html:       (sourceSnapshot && sourceSnapshot.html) || els.savingPresenceChip.innerHTML,
-          background: (sourceSnapshot && sourceSnapshot.background) || task.color || els.savingPresenceChip.style.backgroundColor || getDefaultAccentColor(),
+          background: sourceColor,
+          startBackground: sourceColor,
+          endBackground: destinationColor,
           fontSizePx: m.fontSizePx,
           fontWeight: 400,
           paddingY:   m.paddingY,
