@@ -467,6 +467,21 @@
       max-width: 100%;
       overflow: hidden;
       touch-action: manipulation;
+      position: relative;
+    }
+
+    .btn.is-current-location::before {
+      content: "";
+      position: absolute;
+      top: 9px;
+      left: 9px;
+      width: 9px;
+      height: 9px;
+      border-radius: 999px;
+      background: #ffffff;
+      opacity: 0.90;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.18);
+      pointer-events: none;
     }
 
     .btn.is-pressed,
@@ -1450,6 +1465,19 @@
 
       cachedUserLocationColorMap = map;
       return map;
+    }
+
+    function getUserLocationId(username) {
+      if (!username) return '';
+
+      for (const group of (appData.presence || [])) {
+        const members = group && group.members || [];
+        if (members.some(member => member && member.username === username)) {
+          return group.locationId || '';
+        }
+      }
+
+      return '';
     }
 
     function getPresenceSignature(presence) {
@@ -2456,6 +2484,9 @@
 
       const fragment        = document.createDocumentFragment();
       const colorMap        = (type === 'user') ? getUserLocationColorMap() : null;
+      const currentLocationId = (type === 'location' && selectedUser)
+        ? getUserLocationId(selectedUser.username)
+        : '';
 
       items.forEach(item => {
         const btn = document.createElement('button');
@@ -2473,6 +2504,13 @@
           btn.dataset.locationId = item.id || '';
           const bg = normalizeHexColor(item.color);
           if (bg) btn.style.backgroundColor = bg;
+          if (item.id && item.id === currentLocationId) {
+            btn.classList.add('is-current-location');
+            btn.setAttribute(
+              'aria-label',
+              `現在地: ${item.ja || item.en || item.id}`
+            );
+          }
         } else if (type === 'user') {
           btn.dataset.username = item.username || '';
           const bg = colorMap.get(item.username);
