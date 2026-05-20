@@ -244,15 +244,6 @@
       min-width: 0;
     }
 
-    .titleStatusIcon {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 40px;
-      height: 40px;
-      flex: 0 0 auto;
-    }
-
     .headerRightControls,
     .presenceSizeControls {
       display: flex;
@@ -688,6 +679,114 @@
       padding-left: 0;
     }
 
+    .syncIndicator {
+      --sync-color: var(--sub);
+      z-index: 30;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-width: 62px;
+      margin-top: 28px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      color: var(--sync-color);
+      background: rgba(255, 255, 255, 0.88);
+      border: 1px solid rgba(226, 232, 240, 0.86);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      pointer-events: none;
+      backdrop-filter: blur(8px);
+    }
+
+    .syncIndicator--side {
+      color: var(--sync-color);
+    }
+
+    .syncIndicator__dots {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .syncIndicator__dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.34;
+      animation: syncDotPulse 920ms ease-in-out infinite;
+    }
+
+    .syncIndicator__dot:nth-child(2) { animation-delay: 120ms; }
+    .syncIndicator__dot:nth-child(3) { animation-delay: 240ms; }
+
+    .syncIndicator__trail {
+      position: relative;
+      width: 18px;
+      height: 2px;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.58;
+      transform: translateX(1px);
+    }
+
+    .syncIndicator__trail::after {
+      content: "";
+      position: absolute;
+      right: -1px;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      border-top: 2px solid currentColor;
+      border-right: 2px solid currentColor;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .syncIndicator__check {
+      display: none;
+      width: 44px;
+      height: 44px;
+      border-radius: 999px;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(148, 163, 184, 0.40);
+    }
+
+    .syncIndicator__check::before {
+      content: "";
+      width: 16px;
+      height: 10px;
+      border-left: 4px solid currentColor;
+      border-bottom: 4px solid currentColor;
+      transform: translateY(-2px) rotate(-45deg);
+    }
+
+    .syncIndicator--done {
+      min-width: 0;
+      margin-top: 18px;
+      padding: 0;
+      background: transparent;
+      border-color: transparent;
+      box-shadow: none;
+      backdrop-filter: none;
+      animation: popIn 220ms cubic-bezier(0.2, 0.9, 0.2, 1.12);
+    }
+
+    .syncIndicator--done .syncIndicator__dots,
+    .syncIndicator--done .syncIndicator__trail {
+      display: none;
+    }
+
+    .syncIndicator--done .syncIndicator__check {
+      display: inline-flex;
+    }
+
+    @keyframes syncDotPulse {
+      0%, 100% { opacity: 0.30; transform: translateX(0) scale(0.92); }
+      50% { opacity: 0.82; transform: translateX(2px) scale(1); }
+    }
+
     .errorWrap {
       width: 100%;
       height: 100%;
@@ -884,6 +983,29 @@
         padding: 2px 8px 8px;
         overflow: visible;
       }
+
+      .syncIndicator--mobile {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        gap: 6px;
+        min-width: 56px;
+        margin-top: 0;
+        padding: 10px 14px;
+        color: rgba(31, 41, 55, 0.68);
+        background: rgba(255, 255, 255, 0.82);
+        transform: translate(-50%, -50%);
+      }
+
+      .syncIndicator--mobile .syncIndicator__trail {
+        display: none;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .syncIndicator__dot {
+        animation: none;
+      }
     }
 
     @media (max-width: 600px) {
@@ -942,8 +1064,6 @@
               <div class="titleWrap">
                 <!-- h1 は1ページに1つ。こちらがメインのページ見出し -->
                 <h1 class="title" id="title"></h1>
-                <!-- aria-live でスクリーンリーダーへ状態変化を通知 -->
-                <div class="titleStatusIcon hidden" id="titleStatusIcon" aria-live="polite" aria-atomic="true"></div>
               </div>
               <div class="headerRightControls">
                 <div class="buttonSizeControls" id="buttonSizeControls">
@@ -967,6 +1087,15 @@
                     </div>
                     <div class="savingPresenceMembers" id="savingPresenceMembers">
                       <span class="nameChip nameChip--saving" id="savingPresenceChip"></span>
+                    </div>
+                    <div class="syncIndicator hidden" id="syncIndicator" role="status" aria-live="polite" aria-label="反映中">
+                      <span class="syncIndicator__dots" aria-hidden="true">
+                        <span class="syncIndicator__dot"></span>
+                        <span class="syncIndicator__dot"></span>
+                        <span class="syncIndicator__dot"></span>
+                      </span>
+                      <span class="syncIndicator__trail" aria-hidden="true"></span>
+                      <span class="syncIndicator__check" aria-hidden="true"></span>
                     </div>
                   </div>
                 </div>
@@ -1145,7 +1274,6 @@
 
     const SAVE_TIMEOUT_MS = 15000;
     const SAVING_LOCATION_REVEAL_AFTER_START_MS = 0;
-
     const PRESENCE_FONT_LEVEL_KEY = 'presenceFontLevel';
     const PRESENCE_FONT_MIN = 1;
     const PRESENCE_FONT_MAX = 5;
@@ -1203,6 +1331,7 @@
     let saveWatchdogTimer = null;
     let saveRequestSeq = 0;
     let activeSaveRequestId = null;
+    let syncIndicatorHome = null;
 
     // presence 更新時のみ再計算するカラーマップキャッシュ
     let cachedUserLocationColorMap = null;
@@ -1211,7 +1340,6 @@
 
     function initDOM() {
       els.title                    = document.getElementById('title');
-      els.titleStatusIcon          = document.getElementById('titleStatusIcon');
       els.leftArea                 = document.querySelector('.leftArea');
       els.buttonSizeControls       = document.getElementById('buttonSizeControls');
       els.selectedUserChipContainer= document.getElementById('selectedUserChipContainer');
@@ -1223,6 +1351,8 @@
       els.savingPresenceLocation   = document.getElementById('savingPresenceLocation');
       els.savingPresenceLocationName = document.getElementById('savingPresenceLocationName');
       els.savingPresenceChip       = document.getElementById('savingPresenceChip');
+      els.syncIndicator            = document.getElementById('syncIndicator');
+      syncIndicatorHome            = els.syncIndicator ? els.syncIndicator.parentElement : null;
       els.resultCard               = document.getElementById('resultCard');
       els.presencePanel            = document.querySelector('.presencePanel');
       els.presenceList             = document.getElementById('presenceList');
@@ -1267,7 +1397,7 @@
 
       clearResetTimer();
 
-      setHeader('通信に時間がかかっています', 'Request Taking Too Long', 'error');
+      setHeader('通信に時間がかかっています', 'Request Taking Too Long');
       setSelectedUserChipHidden(true);
       showResultView({
         ok: false,
@@ -1579,6 +1709,38 @@
 
     function isPresencePanelBelowMainFlow() {
       return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+    }
+
+    function hideSyncIndicator() {
+      if (!els.syncIndicator) return;
+      els.syncIndicator.classList.add('hidden');
+      els.syncIndicator.classList.remove('syncIndicator--mobile', 'syncIndicator--side', 'syncIndicator--done');
+      els.syncIndicator.setAttribute('aria-label', '反映中');
+      els.syncIndicator.style.removeProperty('--sync-color');
+      if (syncIndicatorHome && els.syncIndicator.parentElement !== syncIndicatorHome) {
+        syncIndicatorHome.appendChild(els.syncIndicator);
+      }
+    }
+
+    function showSyncIndicator(task, state = 'pending') {
+      if (!els.syncIndicator) return;
+
+      const isMobileLayout = isPresencePanelBelowMainFlow();
+      const color = normalizeHexColor(task && task.color) || getDefaultAccentColor();
+      const isDone = state === 'done';
+
+      if (isMobileLayout) {
+        document.body.appendChild(els.syncIndicator);
+      } else if (syncIndicatorHome && els.syncIndicator.parentElement !== syncIndicatorHome) {
+        syncIndicatorHome.appendChild(els.syncIndicator);
+      }
+
+      els.syncIndicator.style.setProperty('--sync-color', color);
+      els.syncIndicator.setAttribute('aria-label', isDone ? '反映しました' : '反映中');
+      els.syncIndicator.classList.toggle('syncIndicator--mobile', isMobileLayout);
+      els.syncIndicator.classList.toggle('syncIndicator--side', !isMobileLayout);
+      els.syncIndicator.classList.toggle('syncIndicator--done', isDone);
+      els.syncIndicator.classList.remove('hidden');
     }
 
     function waitForScrollSettle(targetEl, timeoutMs = 900) {
@@ -2223,30 +2385,10 @@
       applyButtonSizeLevel();
     }
 
-    function setHeader(titleJa, titleEn, iconType = null) {
+    function setHeader(titleJa, titleEn) {
       if (!els.title) return;
 
       els.title.innerHTML = formatBilingualLines(titleJa, titleEn);
-
-      if (!els.titleStatusIcon) return;
-
-      if (!iconType) {
-        els.titleStatusIcon.innerHTML = '';
-        els.titleStatusIcon.classList.add('hidden');
-        return;
-      }
-
-      let iconHtml = '';
-      if (iconType === 'saving') {
-        iconHtml = `<svg viewBox="0 0 24 24" style="width:28px;height:28px;color:var(--sub);animation:spin 1s linear infinite;"><path fill="currentColor" d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8z"/></svg>`;
-      } else if (iconType === 'success') {
-        iconHtml = `<svg viewBox="0 0 24 24" style="width:36px;height:36px;color:var(--ok);fill:currentColor;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>`;
-      } else if (iconType === 'error') {
-        iconHtml = `<svg viewBox="0 0 24 24" style="width:36px;height:36px;color:var(--danger);fill:currentColor;animation:popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275) forwards;"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>`;
-      }
-
-      els.titleStatusIcon.innerHTML = iconHtml;
-      els.titleStatusIcon.classList.toggle('hidden', !iconHtml);
     }
 
     function showSelectedUser(user) {
@@ -2279,6 +2421,7 @@
     function hideResultView() {
       els.resultView.classList.add('hidden');
       els.buttonGrid.classList.remove('hidden');
+      hideSyncIndicator();
       hideSavingPresenceView();
       els.resultCard.classList.add('hidden');
       hideResultActionButton();
@@ -2312,20 +2455,25 @@
 
     function resetSavingPresenceGroupFade() {
       stopElementAnimations(els.savingPresenceGroup);
+      stopElementAnimations(els.savingPresenceLocation);
+      stopElementAnimations(els.savingPresenceMembers);
+      stopElementAnimations(els.savingPresenceChip);
     }
 
     function fadeOutSavingPresenceGroup() {
-      if (!els.savingPresenceGroup) return null;
+      if (!els.savingPresenceLocation && !els.savingPresenceMembers) return null;
 
-      stopElementAnimations(els.savingPresenceGroup);
+      stopElementAnimations(els.savingPresenceLocation);
+      stopElementAnimations(els.savingPresenceMembers);
 
       const endTransform = 'translateY(-4px) scale(0.985)';
       const durationMs =
         CHIP_ANIMATION.flight.durationMs +
         CHIP_ANIMATION.landing.durationMs -
         CHIP_ANIMATION.timing.overlapMs;
-      const anim = startElementAnimation(
-        els.savingPresenceGroup,
+
+      const locationAnim = startElementAnimation(
+        els.savingPresenceLocation,
         [
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
           { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
@@ -2338,7 +2486,35 @@
         }
       );
 
-      return anim;
+      const membersAnim = startElementAnimation(
+        els.savingPresenceMembers,
+        [
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
+          { opacity: 0, transform: endTransform, offset: 1 }
+        ],
+        {
+          duration: durationMs,
+          easing: CHIP_ANIMATION.flight.easing,
+          fill: 'forwards'
+        }
+      );
+
+      const chipAnim = startElementAnimation(
+        els.savingPresenceChip,
+        [
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0 },
+          { opacity: 1, transform: 'translateY(0) scale(1)', offset: 0.60 },
+          { opacity: 0, transform: endTransform, offset: 1 }
+        ],
+        {
+          duration: durationMs,
+          easing: CHIP_ANIMATION.flight.easing,
+          fill: 'forwards'
+        }
+      );
+
+      return chipAnim || membersAnim || locationAnim;
     }
 
     function setSavingPresenceLocationPending(isPending) {
@@ -2368,6 +2544,7 @@
       clearSavingPresenceLocationTimer();
       resetSavingPresenceGroupFade();
       setSavingPresenceLocationPending(true);
+      hideSyncIndicator();
       if (els.savingPresenceView) els.savingPresenceView.classList.add('hidden');
     }
 
@@ -2385,6 +2562,7 @@
       els.resultView.classList.remove('hidden');
       els.resultCard.classList.add('hidden');
       els.savingPresenceView.classList.remove('hidden');
+      hideSyncIndicator();
       hideResultActionButton();
 
       const color = normalizeHexColor(location && location.color) || getDefaultAccentColor();
@@ -2705,7 +2883,7 @@
       presenceFetchVersion += 1;
       stopPresencePolling();
 
-      setHeader('送信中です', 'Saving...', 'saving');
+      setHeader('送信中です', 'Saving...');
 
       const selectedChipRect = els.selectedUserChip ? getRectFromElement(els.selectedUserChip) : null;
       const selectedChipHtml = els.selectedUserChip
@@ -2740,7 +2918,12 @@
             resolvePresenceScrollReady();
             return;
           }
-          scrollPresencePanelForSave(queuedTask).then(resolvePresenceScrollReady);
+          scrollPresencePanelForSave(queuedTask).then(() => {
+            if (!queuedTask.cancelPresenceScroll) {
+              showSyncIndicator(queuedTask);
+            }
+            resolvePresenceScrollReady();
+          });
         });
       });
 
@@ -2785,7 +2968,7 @@
           const shouldCompleteVisibleTask =
             selectedUser && selectedUser.username === task.username && isUiLocked;
           if (shouldCompleteVisibleTask) {
-            setHeader('記録しました', 'Saved', 'success');
+            setHeader('記録しました', 'Saved');
             setSelectedUserChipHidden(true);
           }
 
@@ -2800,6 +2983,9 @@
                 location: { ja: task.locationJa, en: task.locationEn, icon: task.icon, color: task.color },
                 holdLocation: false
               });
+              if (!isPresencePanelBelowMainFlow()) {
+                showSyncIndicator(task, 'done');
+              }
 
               scheduleAnimationStart(() => {
                 if (animateSavedChipToPresence(task)) {
@@ -2808,6 +2994,8 @@
               });
 
               scheduleReset(CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs + 80);
+            } else {
+              hideSyncIndicator();
             }
 
             startPresencePolling();
@@ -2829,7 +3017,7 @@
           const msg            = extractErrorText(err);
           const isLockConflict = (msg.reason === 'lock');
 
-          setHeader('エラーが発生しました', 'Error', 'error');
+          setHeader('エラーが発生しました', 'Error');
           setSelectedUserChipHidden(true);
 
           showResultView({
@@ -2874,7 +3062,7 @@
       subJa = '',
       subEn = ''
     }) {
-      setHeader(headerJa, headerEn, 'error');
+      setHeader(headerJa, headerEn);
       showSelectedUser(null);
       showResultView({ ok: false, nameJa, nameEn, locationJa, locationEn, subJa, subEn });
     }
