@@ -72,7 +72,7 @@ Presence Board is designed for small teams that want a simple shared presence bo
 6. 右上の **デプロイ → 「デプロイを管理」** を開きます。(「新しいデプロイ」ではありません。)
 7. 既存の Web アプリの右側にある編集アイコン（鉛筆アイコン）を押します。
 8. **バージョン** で **新バージョン** を選び、**デプロイ** します。
-9. 既存の `/exec` URL を開き、名前・場所の選択と在室状況の更新を確認します。
+9. 既存の `/exec` URL をリロードします。
 
 ## Security / Privacy Notes / セキュリティとプライバシーに関する注意
 
