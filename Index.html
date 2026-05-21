@@ -1397,6 +1397,7 @@
 
       clearResetTimer();
 
+      playSaveErrorSound();
       setHeader('通信に時間がかかっています', 'Request Taking Too Long');
       setSelectedUserChipHidden(true);
       showResultView({
@@ -1684,6 +1685,58 @@
         osc.start();
         osc.stop(tapAudioCtx.currentTime + 0.05);
       } catch (_) {}
+    }
+
+    function playToneSequence(notes, volume = 0.22) {
+      try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+
+        if (!tapAudioCtx) {
+          tapAudioCtx = new AudioContextClass();
+        }
+
+        if (tapAudioCtx.state === 'suspended') {
+          tapAudioCtx.resume();
+        }
+
+        let startAt = tapAudioCtx.currentTime;
+
+        notes.forEach(note => {
+          const duration = note.duration || 0.12;
+          const osc = tapAudioCtx.createOscillator();
+          const gain = tapAudioCtx.createGain();
+
+          osc.type = note.type || 'sine';
+          osc.frequency.setValueAtTime(note.frequency, startAt);
+
+          gain.gain.setValueAtTime(0.0001, startAt);
+          gain.gain.exponentialRampToValueAtTime(volume, startAt + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startAt + duration);
+
+          osc.connect(gain);
+          gain.connect(tapAudioCtx.destination);
+
+          osc.start(startAt);
+          osc.stop(startAt + duration + 0.01);
+
+          startAt += duration + (note.gap || 0);
+        });
+      } catch (_) {}
+    }
+
+    function playSaveSuccessSound() {
+      playToneSequence([
+        { frequency: 523.25, duration: 0.13, gap: 0.035 },
+        { frequency: 783.99, duration: 0.18 }
+      ], 0.24);
+    }
+
+    function playSaveErrorSound() {
+      playToneSequence([
+        { frequency: 220.00, duration: 0.12, gap: 0.055 },
+        { frequency: 196.00, duration: 0.15 }
+      ], 0.18);
     }
 
     function attachPressFeedback(btn) {
@@ -2975,6 +3028,7 @@
           const shouldCompleteVisibleTask =
             selectedUser && selectedUser.username === task.username && isUiLocked;
           if (shouldCompleteVisibleTask) {
+            playSaveSuccessSound();
             setHeader('記録しました', 'Saved');
             setSelectedUserChipHidden(true);
           }
@@ -3024,6 +3078,7 @@
           const msg            = extractErrorText(err);
           const isLockConflict = (msg.reason === 'lock');
 
+          playSaveErrorSound();
           setHeader('エラーが発生しました', 'Error');
           setSelectedUserChipHidden(true);
 
