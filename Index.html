@@ -1342,6 +1342,7 @@
     let saveRequestSeq = 0;
     let activeSaveRequestId = null;
     let syncIndicatorHome = null;
+    let pendingLandingUsername = '';
 
     // presence 更新時のみ再計算するカラーマップキャッシュ
     let cachedUserLocationColorMap = null;
@@ -2319,7 +2320,9 @@
         toRect,
         ghostOptions: {
           html:       task.originChipHtml,
-          background: task.color || task.originChipBackground,
+          background: task.originChipBackground || task.color,
+          startBackground: task.originChipBackground || task.color || getDefaultAccentColor(),
+          endBackground: task.color || task.originChipBackground || getDefaultAccentColor(),
           fontSizePx: m.fontSizePx,
           fontWeight: 400,
           paddingY:   m.paddingY,
@@ -2873,6 +2876,9 @@
             chip.dataset.username = m.username || '';
             chip.innerHTML = formatBilingualInline(m.nameJa, m.nameEn);
             chip.style.backgroundColor = locationColor || defaultAccent;
+            if (pendingLandingUsername && m.username === pendingLandingUsername) {
+              chip.style.opacity = '0';
+            }
             members.appendChild(chip);
           });
 
@@ -3085,7 +3091,15 @@
           const scrollReady = task.presenceScrollPromise || Promise.resolve();
           scrollReady.then(() => {
             task.previousPresenceChipSnapshot = getPresenceChipSnapshot(task.username);
+            const shouldHideLandingChip =
+              shouldCompleteVisibleTask &&
+              (!task.previousPresenceChipSnapshot ||
+               !task.previousPresenceChipSnapshot.locationId ||
+               task.previousPresenceChipSnapshot.locationId !== task.locationId);
+
+            pendingLandingUsername = shouldHideLandingChip ? task.username : '';
             updatePresenceIfChanged(res.presence);
+            pendingLandingUsername = '';
             highlightPresenceGroup(task.locationId, task.color);
 
             if (shouldCompleteVisibleTask) {
@@ -3099,8 +3113,12 @@
               }
 
               scheduleAnimationStart(() => {
-                if (animateSavedChipToPresence(task)) {
+                const didAnimate = animateSavedChipToPresence(task);
+                if (didAnimate) {
                   fadeOutSavingPresenceGroup();
+                } else if (shouldHideLandingChip) {
+                  const targetChip = getPresenceChipElement(task.username);
+                  if (targetChip) stopElementAnimations(targetChip);
                 }
               });
 
