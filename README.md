@@ -62,6 +62,22 @@ Presence Board is designed for small teams that want a simple shared presence bo
 
 テンプレートを使わずに手動導入する場合は、Apps Script プロジェクトに同名ファイルとして配置してください。
 
+## Update / アップデート手順
+
+すでに運用している Presence Board を最新版にする場合は、スプレッドシートはそのまま残し、Apps Script のコードだけを差し替えます。
+
+1. このリポジトリの `Code.gs` と `Index.html` を開き、それぞれ **Raw** から全文をコピーします。
+2. 運用中の Google スプレッドシートを開き、**拡張機能 → Apps Script** を選びます。
+3. Apps Script エディタで `Code.gs` を開き、内容を GitHub の最新版に置き換えます。
+4. 同じように `Index.html` も最新版に置き換えます。
+5. 保存します。
+6. 右上の **デプロイ → 「デプロイを管理」** を開きます。(「新しいデプロイ」ではありません。)
+7. 既存の Web アプリの右側にある編集アイコン（鉛筆アイコン）を押します。
+8. **バージョン** で **新バージョン** を選び、**デプロイ** します。
+9. 既存の `/exec` URL を開き、名前・場所の選択と在室状況の更新を確認します。
+
+既存の Web アプリを編集して新バージョンをデプロイすれば、共有端末に登録済みのURLをそのまま使えます。
+
 ## Security / Privacy Notes / セキュリティとプライバシーに関する注意
 
 This app is designed as a lightweight presence board for small teams. It is not intended for strict access control, attendance tracking, or security auditing.
