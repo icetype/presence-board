@@ -376,14 +376,12 @@
     }
 
     .presenceGroup.is-recently-updated {
-      animation: presenceGroupHighlight 1200ms ease-out both;
+      animation: presenceGroupHighlight var(--presence-highlight-duration, 580ms) ease-out both;
     }
 
     @keyframes presenceGroupHighlight {
       0% { background: transparent; }
-      16% { background: var(--presence-highlight-bg, rgba(75, 85, 99, 0.12)); }
-      72% { background: var(--presence-highlight-bg, rgba(75, 85, 99, 0.12)); }
-      100% { background: transparent; }
+      18%, 100% { background: var(--presence-highlight-bg, rgba(75, 85, 99, 0.12)); }
     }
 
     .presenceLocation {
@@ -1912,15 +1910,26 @@
       const group = els.presenceList.querySelector(`.presenceGroup[data-location-id="${CSS.escape(locationId)}"]`);
       if (!group) return;
 
+      const delayMs = 0;
+      const resetMs = CHIP_ANIMATION.flight.durationMs + CHIP_ANIMATION.landing.durationMs + 80;
+      const durationMs = Math.max(240, resetMs - delayMs + 40);
+
       group.style.setProperty('--presence-highlight-bg', hexToRgba(color, 0.12) || 'rgba(75, 85, 99, 0.12)');
+      group.style.setProperty('--presence-highlight-duration', `${durationMs}ms`);
       group.classList.remove('is-recently-updated');
-      void group.offsetWidth;
-      group.classList.add('is-recently-updated');
 
       window.setTimeout(() => {
+        if (!group.isConnected) return;
+        void group.offsetWidth;
+        group.classList.add('is-recently-updated');
+      }, delayMs);
+
+      window.setTimeout(() => {
+        if (!group.isConnected) return;
         group.classList.remove('is-recently-updated');
         group.style.removeProperty('--presence-highlight-bg');
-      }, 1300);
+        group.style.removeProperty('--presence-highlight-duration');
+      }, resetMs + 40);
     }
 
     function scrollLeftPanelForError() {
