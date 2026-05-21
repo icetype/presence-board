@@ -60,8 +60,6 @@ Presence Board is designed for small teams that want a simple shared presence bo
 | `Code.gs` | Google Apps Script のサーバー側コードです。 |
 | `Index.html` | Web アプリのUIです。 |
 
-テンプレートを使わずに手動導入する場合は、Apps Script プロジェクトに同名ファイルとして配置してください。
-
 ## Update / アップデート手順
 
 すでに運用している Presence Board を最新版にする場合は、スプレッドシートはそのまま残し、Apps Script のコードだけを差し替えます。
@@ -70,7 +68,7 @@ Presence Board is designed for small teams that want a simple shared presence bo
 2. 運用中の Google スプレッドシートを開き、**拡張機能 → Apps Script** を選びます。
 3. Apps Script エディタで `Code.gs` を開き、内容を GitHub の最新版に置き換えます。
 4. 同じように `Index.html` も最新版に置き換えます。
-5. 保存します。
+5. フロッピーディスクアイコンを押して保存します。
 6. 右上の **デプロイ → 「デプロイを管理」** を開きます。(「新しいデプロイ」ではありません。)
 7. 既存の Web アプリの右側にある編集アイコン（鉛筆アイコン）を押します。
 8. **バージョン** で **新バージョン** を選び、**デプロイ** します。
