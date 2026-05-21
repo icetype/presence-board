@@ -74,8 +74,6 @@ Presence Board is designed for small teams that want a simple shared presence bo
 8. **バージョン** で **新バージョン** を選び、**デプロイ** します。
 9. 既存の `/exec` URL を開き、名前・場所の選択と在室状況の更新を確認します。
 
-既存の Web アプリを編集して新バージョンをデプロイすれば、共有端末に登録済みのURLをそのまま使えます。
-
 ## Security / Privacy Notes / セキュリティとプライバシーに関する注意
 
 This app is designed as a lightweight presence board for small teams. It is not intended for strict access control, attendance tracking, or security auditing.
