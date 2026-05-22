@@ -28,6 +28,7 @@
       --button-padding-y: 10px;
       --button-padding-x: 8px;
       --button-min-col-width: 120px;
+      --button-grid-right-gutter: 4px;
 
       --press-depth: 6px;
       --card-rest-shadow: 0 10px 18px rgba(15, 23, 42, 0.08), 0 3px 6px rgba(15, 23, 42, 0.06);
@@ -35,8 +36,6 @@
 
       --selected-chip-scale: 1.32;
       --selected-chip-scale-pop: 1.40;
-      --selected-chip-rest-shift-x: calc((1 - var(--selected-chip-scale)) * 50%);
-
       --name-chip-radius: 999px;
       --name-chip-line-height: 1.2;
       --name-chip-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
@@ -252,6 +251,11 @@
       align-items: center;
     }
 
+    .headerRightControls {
+      justify-content: flex-end;
+      min-width: 0;
+    }
+
     .buttonSizeControls {
       display: flex;
       gap: 4px;
@@ -260,7 +264,9 @@
     .selectedUserChipContainer {
       display: flex;
       align-items: center;
+      justify-content: flex-end;
       max-width: 100%;
+      padding-right: var(--button-grid-right-gutter);
       overflow: visible;
     }
 
@@ -288,7 +294,8 @@
     }
 
     .nameChip--selected {
-      transform: translateX(var(--selected-chip-rest-shift-x)) scale(var(--selected-chip-scale));
+      transform: scale(var(--selected-chip-scale));
+      transform-origin: right center;
       padding: 3px 10px;
       font-size: 19px;
     }
@@ -352,7 +359,7 @@
       min-height: 0;
       overflow-y: auto;
       overflow-x: hidden;
-      padding-right: 4px;
+      padding-right: var(--button-grid-right-gutter);
       padding-bottom: calc(var(--press-depth) + 6px);
       width: 100%;
     }
@@ -1941,30 +1948,6 @@
       }
     }
 
-    function measureNaturalTextWidth(el) {
-      if (!el) return 0;
-
-      const probe = document.createElement('span');
-      const style = window.getComputedStyle(el);
-
-      probe.textContent = (el.textContent || '').trim();
-      probe.style.position    = 'fixed';
-      probe.style.left        = '-99999px';
-      probe.style.top         = '-99999px';
-      probe.style.visibility  = 'hidden';
-      probe.style.whiteSpace  = 'nowrap';
-      probe.style.display     = 'inline-block';
-      // font ショートハンドで fontFamily/fontSize/fontWeight/fontStyle/lineHeight をまとめて設定
-      probe.style.font         = style.font;
-      probe.style.letterSpacing= style.letterSpacing;
-      probe.style.textTransform= style.textTransform;
-
-      document.body.appendChild(probe);
-      const width = probe.getBoundingClientRect().width;
-      probe.remove();
-
-      return width;
-    }
     function getGhostChipMetrics(el) {
       if (!el) return { fontSizePx: 42, paddingY: 5, paddingX: 16 };
 
@@ -2005,14 +1988,13 @@
 
     function getSelectedChipLandingTransforms() {
       const rootStyle = getComputedStyle(document.documentElement);
-      const shiftX    = rootStyle.getPropertyValue('--selected-chip-rest-shift-x').trim() || '0px';
       const restScale = parseFloat(rootStyle.getPropertyValue('--selected-chip-scale'))    || 1;
       const peakScale = parseFloat(rootStyle.getPropertyValue('--selected-chip-scale-pop'))|| restScale;
 
       return {
-        startTransform: `translateX(${shiftX}) scale(${restScale * CHIP_ANIMATION.landing.startScaleFactor})`,
-        peakTransform:  `translateX(${shiftX}) scale(${peakScale})`,
-        endTransform:   `translateX(${shiftX}) scale(${restScale})`
+        startTransform: `scale(${restScale * CHIP_ANIMATION.landing.startScaleFactor})`,
+        peakTransform:  `scale(${peakScale})`,
+        endTransform:   `scale(${restScale})`
       };
     }
 
