@@ -1337,6 +1337,7 @@
     let buttonSizeLevel = BUTTON_SIZE_DEFAULT;
     let lastSelectedUserButtonRect = null;
     let lastSelectedUserButtonStartWidth = 0;
+    let lastSelectedUserButtonBackground = '';
     let savingPresenceLocationTimer = null;
     let saveWatchdogTimer = null;
     let saveRequestSeq = 0;
@@ -2114,6 +2115,8 @@
 
       ghost.style.width     = `${baseWidth}px`;
       ghost.style.height    = `${baseHeight}px`;
+      ghost.style.minWidth  = '0';
+      ghost.style.minHeight = '0';
       ghost.style.transform = startTransform;
       ghost.style.opacity   = String(startOpacity);
       ghost.style.visibility= 'visible';
@@ -2279,8 +2282,8 @@
 
       const html       = els.selectedUserChip.innerHTML;
       const bg         = els.selectedUserChip.style.backgroundColor || getDefaultAccentColor();
-      const startWidth = lastSelectedUserButtonStartWidth || lastSelectedUserButtonRect.width;
-      const startScale = clamp(startWidth / targetRect.width, 0.2, 0.98);
+      const sourceBg   = lastSelectedUserButtonBackground || bg;
+      const startScale = Math.max(0.2, lastSelectedUserButtonRect.width / targetRect.width);
 
       const launched = launchGhostWithLandingPop({
         fromRect: lastSelectedUserButtonRect,
@@ -2288,6 +2291,8 @@
         ghostOptions: {
           html,
           background: bg,
+          startBackground: sourceBg,
+          endBackground: bg,
           fontSizePx: 19,
           fontWeight: 400,
           paddingY:   3,
@@ -2320,7 +2325,7 @@
         toRect,
         ghostOptions: {
           html:       task.originChipHtml,
-          background: task.originChipBackground || task.color,
+          background: task.color || task.originChipBackground,
           startBackground: task.originChipBackground || task.color || getDefaultAccentColor(),
           endBackground: task.color || task.originChipBackground || getDefaultAccentColor(),
           fontSizePx: m.fontSizePx,
@@ -2393,34 +2398,34 @@
         return true;
       }
 
-      const m = sourceSnapshot || getGhostChipMetrics(els.savingPresenceChip);
+      const targetMetrics = getGhostChipMetrics(targetChip);
       const sourceColor =
         (sourceSnapshot && sourceSnapshot.background) ||
         els.savingPresenceChip.style.backgroundColor ||
         getDefaultAccentColor();
       const destinationColor =
-        normalizeHexColor(task.color) ||
         (targetChip && (targetChip.style.backgroundColor || getComputedStyle(targetChip).backgroundColor)) ||
+        normalizeHexColor(task.color) ||
         getDefaultAccentColor();
 
       const launched = launchGhostWithLandingPop({
         fromRect,
         toRect,
         ghostOptions: {
-          html:       (sourceSnapshot && sourceSnapshot.html) || els.savingPresenceChip.innerHTML,
-          background: sourceColor,
+          html:       targetChip.innerHTML,
+          background: destinationColor,
           startBackground: sourceColor,
           endBackground: destinationColor,
-          fontSizePx: m.fontSizePx,
+          fontSizePx: targetMetrics.fontSizePx,
           fontWeight: 400,
-          paddingY:   m.paddingY,
-          paddingX:   m.paddingX,
-          baseWidth:  fromRect.width,
-          baseHeight: fromRect.height,
-          startScaleX: 1,
-          startScaleY: 1,
-          endScaleX: toRect.width  / fromRect.width,
-          endScaleY: toRect.height / fromRect.height
+          paddingY:   targetMetrics.paddingY,
+          paddingX:   targetMetrics.paddingX,
+          baseWidth:  toRect.width,
+          baseHeight: toRect.height,
+          startScaleX: fromRect.width  / toRect.width,
+          startScaleY: fromRect.height / toRect.height,
+          endScaleX: 1,
+          endScaleY: 1
         },
         sourceEl: task.previousPresenceChipSnapshot ? null : els.savingPresenceChip,
         targetEl: targetChip,
@@ -2817,6 +2822,7 @@
           if (type === 'user') {
             lastSelectedUserButtonRect       = rect;
             lastSelectedUserButtonStartWidth = measureTwoLineButtonChipStartWidth(btn);
+            lastSelectedUserButtonBackground = btn.style.backgroundColor || getComputedStyle(btn).backgroundColor || getDefaultAccentColor();
           }
           playTapSound();
           onClick(item);
@@ -2981,11 +2987,26 @@
       showSelectedUser(selectedUser);
       hideResultView();
 
+      const shouldAnimateSelectedChip =
+        !!lastSelectedUserButtonRect &&
+        !!els.selectedUserChip &&
+        !els.selectedUserChipContainer.classList.contains('hidden');
+
+      if (shouldAnimateSelectedChip) {
+        els.selectedUserChip.style.opacity = '0';
+      }
+
       setHeader('場所を選択', 'Select Location');
       setButtons(appData.locations, submitLocation, { addBackButton: true, type: 'location' });
 
       resetSelectionScrollPosition();
-      scheduleAnimationStart(() => animateSelectedUserChip());
+      scheduleAnimationStart(() => {
+        if (shouldAnimateSelectedChip) {
+          animateSelectedUserChip();
+        } else {
+          stopElementAnimations(els.selectedUserChip);
+        }
+      });
       scheduleReset(10000);
     }
 
