@@ -929,8 +929,6 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 88px;
-      min-height: 40px;
       padding: 4px 10px;
       border-radius: 999px;
       color: #ffffff;
@@ -1336,7 +1334,6 @@
     let presenceFontLevel = PRESENCE_FONT_DEFAULT;
     let buttonSizeLevel = BUTTON_SIZE_DEFAULT;
     let lastSelectedUserButtonRect = null;
-    let lastSelectedUserButtonStartWidth = 0;
     let lastSelectedUserButtonBackground = '';
     let savingPresenceLocationTimer = null;
     let saveWatchdogTimer = null;
@@ -1968,20 +1965,6 @@
 
       return width;
     }
-
-    function measureTwoLineButtonChipStartWidth(btn) {
-      if (!btn) return 0;
-
-      const mainLine = btn.querySelector('.btn-main-line');
-      const subLine  = btn.querySelector('.btn-sub-line');
-      const textWidth = Math.max(
-        measureNaturalTextWidth(mainLine),
-        measureNaturalTextWidth(subLine)
-      );
-
-      return textWidth > 0 ? textWidth + 20 : 0;
-    }
-
     function getGhostChipMetrics(el) {
       if (!el) return { fontSizePx: 42, paddingY: 5, paddingX: 16 };
 
@@ -2104,6 +2087,10 @@
       const easing       = options.easing       || CHIP_ANIMATION.flight.easing;
       const startOpacity = Number.isFinite(options.startOpacity) ? options.startOpacity : CHIP_ANIMATION.flight.startOpacity;
       const endOpacity   = Number.isFinite(options.endOpacity)   ? options.endOpacity   : CHIP_ANIMATION.flight.endOpacity;
+      const peakOpacity  = Number.isFinite(options.peakOpacity)  ? options.peakOpacity  : null;
+      const peakOffset   = Number.isFinite(options.peakOpacityOffset)
+        ? clamp(options.peakOpacityOffset, 0, 1)
+        : 0.25;
 
       const startX = fromRect.left + fromRect.width  / 2 - baseWidth  / 2;
       const startY = fromRect.top  + fromRect.height / 2 - baseHeight / 2;
@@ -2115,8 +2102,6 @@
 
       ghost.style.width     = `${baseWidth}px`;
       ghost.style.height    = `${baseHeight}px`;
-      ghost.style.minWidth  = '0';
-      ghost.style.minHeight = '0';
       ghost.style.transform = startTransform;
       ghost.style.opacity   = String(startOpacity);
       ghost.style.visibility= 'visible';
@@ -2125,11 +2110,13 @@
         ? [
             { transform: startTransform, opacity: startOpacity, background: startBackground, offset: 0 },
             { background: startBackground, offset: 0.20 },
+            ...(peakOpacity != null ? [{ opacity: peakOpacity, offset: peakOffset }] : []),
             { background: endBackground,   offset: 0.80 },
             { transform: endTransform, opacity: endOpacity, background: endBackground, offset: 1 }
           ]
         : [
             { transform: startTransform, opacity: startOpacity, background: startBackground },
+            ...(peakOpacity != null ? [{ opacity: peakOpacity, offset: peakOffset }] : []),
             { transform: endTransform,   opacity: endOpacity,   background: endBackground }
           ];
 
@@ -2274,16 +2261,28 @@
       });
     }
 
+    function prepareGhostLandingTarget(targetEl) {
+      if (!targetEl) return false;
+      stopElementAnimations(targetEl);
+      targetEl.style.opacity = '0';
+      return true;
+    }
+
     function animateSelectedUserChip() {
       if (!lastSelectedUserButtonRect || !els.selectedUserChip) return;
 
       const targetRect = getRectFromElement(els.selectedUserChip);
-      if (!targetRect) return;
+      if (!targetRect) {
+        stopElementAnimations(els.selectedUserChip);
+        return;
+      }
 
+      const selectedMetrics = getGhostChipMetrics(els.selectedUserChip);
       const html       = els.selectedUserChip.innerHTML;
       const bg         = els.selectedUserChip.style.backgroundColor || getDefaultAccentColor();
       const sourceBg   = lastSelectedUserButtonBackground || bg;
-      const startScale = Math.max(0.2, lastSelectedUserButtonRect.width / targetRect.width);
+      const startWidth = lastSelectedUserButtonRect.width;
+      const startScale = startWidth / targetRect.width;
 
       const launched = launchGhostWithLandingPop({
         fromRect: lastSelectedUserButtonRect,
@@ -2293,10 +2292,13 @@
           background: bg,
           startBackground: sourceBg,
           endBackground: bg,
-          fontSizePx: 19,
+          startOpacity: 0.28,
+          peakOpacity: 0.82,
+          peakOpacityOffset: 0.25,
+          fontSizePx: selectedMetrics.fontSizePx,
           fontWeight: 400,
-          paddingY:   3,
-          paddingX:   10,
+          paddingY:   selectedMetrics.paddingY,
+          paddingX:   selectedMetrics.paddingX,
           baseWidth:  targetRect.width,
           baseHeight: targetRect.height,
           startScaleX: startScale,
@@ -2416,6 +2418,9 @@
           background: destinationColor,
           startBackground: sourceColor,
           endBackground: destinationColor,
+          startOpacity: sourceSnapshot ? 0.28 : CHIP_ANIMATION.flight.startOpacity,
+          peakOpacity: sourceSnapshot ? 0.82 : null,
+          peakOpacityOffset: 0.25,
           fontSizePx: targetMetrics.fontSizePx,
           fontWeight: 400,
           paddingY:   targetMetrics.paddingY,
@@ -2821,7 +2826,6 @@
           const rect = getRectFromElement(btn);
           if (type === 'user') {
             lastSelectedUserButtonRect       = rect;
-            lastSelectedUserButtonStartWidth = measureTwoLineButtonChipStartWidth(btn);
             lastSelectedUserButtonBackground = btn.style.backgroundColor || getComputedStyle(btn).backgroundColor || getDefaultAccentColor();
           }
           playTapSound();
@@ -2985,28 +2989,14 @@
       isUiLocked = false;
       els.buttonGrid.classList.remove('is-busy');
       showSelectedUser(selectedUser);
+      if (lastSelectedUserButtonRect) prepareGhostLandingTarget(els.selectedUserChip);
       hideResultView();
-
-      const shouldAnimateSelectedChip =
-        !!lastSelectedUserButtonRect &&
-        !!els.selectedUserChip &&
-        !els.selectedUserChipContainer.classList.contains('hidden');
-
-      if (shouldAnimateSelectedChip) {
-        els.selectedUserChip.style.opacity = '0';
-      }
 
       setHeader('場所を選択', 'Select Location');
       setButtons(appData.locations, submitLocation, { addBackButton: true, type: 'location' });
 
       resetSelectionScrollPosition();
-      scheduleAnimationStart(() => {
-        if (shouldAnimateSelectedChip) {
-          animateSelectedUserChip();
-        } else {
-          stopElementAnimations(els.selectedUserChip);
-        }
-      });
+      scheduleAnimationStart(() => animateSelectedUserChip());
       scheduleReset(10000);
     }
 
@@ -3035,6 +3025,7 @@
         holdLocation:         true,
         revealLocationAfterMs: SAVING_LOCATION_REVEAL_AFTER_START_MS
       });
+      const preparedSavingChipLanding = prepareGhostLandingTarget(els.savingPresenceChip);
 
       let resolvePresenceScrollReady = () => {};
       const presenceScrollPromise = new Promise(resolve => {
@@ -3048,6 +3039,10 @@
           originChipBackground: selectedChipBg,
           color:                location.color
         });
+
+        if (!launched && preparedSavingChipLanding) {
+          stopElementAnimations(els.savingPresenceChip);
+        }
 
         waitForGhostArrivalCompletion(launched).then(() => {
           if (queuedTask.cancelPresenceScroll) {
