@@ -659,7 +659,7 @@
       color: var(--text);
       opacity: 1;
       transform: translateY(0);
-      transition: opacity 260ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1);
+      transition: opacity 400ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1);
     }
 
     .savingPresenceLocation.is-pending {
@@ -1279,7 +1279,6 @@
     };
 
     const SAVE_TIMEOUT_MS = 15000;
-    const SAVING_LOCATION_REVEAL_AFTER_START_MS = 0;
     const PRESENCE_FONT_LEVEL_KEY = 'presenceFontLevel';
     const PRESENCE_FONT_MIN = 1;
     const PRESENCE_FONT_MAX = 5;
@@ -2619,20 +2618,13 @@
       locationRow.classList.toggle('is-pending', !!isPending);
     }
 
-    function revealSavingPresenceLocation(delayMs = 0) {
+    function revealSavingPresenceLocation() {
       clearSavingPresenceLocationTimer();
 
-      if (delayMs > 0) {
-        savingPresenceLocationTimer = setTimeout(() => {
-          setSavingPresenceLocationPending(false);
-          savingPresenceLocationTimer = null;
-        }, delayMs);
-      } else {
-        savingPresenceLocationTimer = setTimeout(() => {
-          setSavingPresenceLocationPending(false);
-          savingPresenceLocationTimer = null;
-        }, 0);
-      }
+      savingPresenceLocationTimer = setTimeout(() => {
+        setSavingPresenceLocationPending(false);
+        savingPresenceLocationTimer = null;
+      }, 0);
     }
 
     function hideSavingPresenceView() {
@@ -2646,8 +2638,7 @@
     function showSavingPresenceView({
       user,
       location,
-      holdLocation = false,
-      revealLocationAfterMs = 0
+      holdLocation = false
     }) {
       if (!els.savingPresenceView) return;
 
@@ -2674,7 +2665,7 @@
       setSavingPresenceLocationPending(!!holdLocation);
 
       if (holdLocation) {
-        revealSavingPresenceLocation(revealLocationAfterMs);
+        revealSavingPresenceLocation();
       } else {
         clearSavingPresenceLocationTimer();
       }
@@ -2995,8 +2986,7 @@
       showSavingPresenceView({
         user:     selectedUser,
         location,
-        holdLocation:         true,
-        revealLocationAfterMs: SAVING_LOCATION_REVEAL_AFTER_START_MS
+        holdLocation: true
       });
       const preparedSavingChipLanding = prepareGhostLandingTarget(els.savingPresenceChip);
 
