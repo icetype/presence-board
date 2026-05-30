@@ -9,18 +9,37 @@ const LOG_SHEET_PREFIX = 'logs_';
 const USERS_CACHE_KEY = 'users_v1';
 const LOCATIONS_CACHE_KEY = 'locations_v2';
 const PRESENCE_SNAPSHOT_CACHE_KEY = 'presence_snapshot_v1';
+const CURRENT_ROW_INDEX_CACHE_KEY = 'current_presence_row_index_v1';
 
-const USERS_CACHE_TTL_SEC = 21600;       // 6 hours
-const LOCATIONS_CACHE_TTL_SEC = 21600;   // 6 hours
-const PRESENCE_SNAPSHOT_TTL_SEC = 21600; // 6 hours
+const USERS_CACHE_TTL_SEC = 21600;             // 6 hours
+const LOCATIONS_CACHE_TTL_SEC = 21600;         // 6 hours
+const PRESENCE_SNAPSHOT_TTL_SEC = 21600;       // 6 hours
+const CURRENT_ROW_INDEX_CACHE_TTL_SEC = 21600; // 6 hours
 
 const DATETIME_DISPLAY_FORMAT = 'yyyy/MM/dd HH:mm:ss';
+
+let spreadsheet_;
+let scriptCache_;
+
+function getSpreadsheet_() {
+  if (!spreadsheet_) spreadsheet_ = SpreadsheetApp.getActiveSpreadsheet();
+  return spreadsheet_;
+}
+
+function getScriptCache_() {
+  if (!scriptCache_) scriptCache_ = CacheService.getScriptCache();
+  return scriptCache_;
+}
 
 /********************
  * Submission control
  ********************/
 // Fail fast rather than building a waiting queue behind a long-running save.
 const LOCK_TRY_TIMEOUT_MS = 1000;
+
+// Administrative synchronization is rare, so it can wait briefly for an active save to finish.
+const MAINTENANCE_LOCK_TRY_TIMEOUT_MS = 5000;
+
 
 /********************
  * Web app entry point
@@ -69,11 +88,14 @@ function toScriptJsonLiteral_(value) {
 function getInitialData(terminalName) {
   terminalName = validateTerminalName_(terminalName);
 
+  const users = getUsers_();
+  const locations = getLocations_();
+
   return {
-    users: getUsers_(),
-    locations: getLocations_(),
+    users: users,
+    locations: locations,
     terminalName: terminalName,
-    presence: getPresenceData()
+    presence: getPresenceData_(users, locations)
   };
 }
 
@@ -81,13 +103,18 @@ function getInitialData(terminalName) {
  * Presence data
  ********************/
 function getPresenceData() {
+  return getPresenceData_();
+}
+
+function getPresenceData_(users, locations) {
   const cached = getPresenceSnapshotCache_();
   if (cached) return cached;
 
   ensureCurrentPresenceSheet_();
 
-  const users = getUsers_();
-  const locations = getLocations_();
+  users = users || getUsers_();
+  locations = locations || getLocations_();
+
   const currentMap = getCurrentPresenceMap_();
   const presence = buildPresenceFromCurrent_(users, currentMap, locations);
 
@@ -125,16 +152,7 @@ function saveLocation(username, locationId, terminalName) {
   let presence;
   try {
     upsertCurrentPresenceFast_(now, user, location, terminalName);
-    presence = updatePresenceSnapshotCache_(users, locations, {
-      username: user.username,
-      nameJa: user.nameJa,
-      nameEn: user.nameEn,
-      locationId: location.id,
-      locationJa: location.ja,
-      locationEn: location.en,
-      updatedAt: now,
-      terminal: terminalName
-    });
+    presence = updatePresenceSnapshotCache_(users, locations, user, location.id);
   } finally {
     lock.releaseLock();
   }
@@ -170,11 +188,11 @@ function saveLocation(username, locationId, terminalName) {
  * Master data
  ********************/
 function getUsers_() {
-  const cache = CacheService.getScriptCache();
+  const cache = getScriptCache_();
   const cached = cache.get(USERS_CACHE_KEY);
   if (cached) return JSON.parse(cached);
 
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_USERS);
+  const sh = getSpreadsheet_().getSheetByName(SHEET_USERS);
   if (!sh) throw new Error('Sheet "users" not found.');
 
   const values = sh.getDataRange().getValues();
@@ -218,12 +236,17 @@ function getUsers_() {
   return users;
 }
 
+function getUsersFresh_() {
+  getScriptCache_().remove(USERS_CACHE_KEY);
+  return getUsers_();
+}
+
 function getLocations_() {
-  const cache = CacheService.getScriptCache();
+  const cache = getScriptCache_();
   const cached = cache.get(LOCATIONS_CACHE_KEY);
   if (cached) return JSON.parse(cached);
 
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_LOCATIONS);
+  const sh = getSpreadsheet_().getSheetByName(SHEET_LOCATIONS);
   if (!sh) throw new Error('Sheet "locations" not found.');
 
   const values = sh.getDataRange().getValues();
@@ -313,7 +336,7 @@ function getLogLikeHeader_(firstColumnName) {
 }
 
 function getOrCreateMonthlyLogSheet_(dateObj) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   const sheetName = getMonthlyLogSheetName_(dateObj);
   let sh = ss.getSheetByName(sheetName);
 
@@ -354,7 +377,7 @@ function appendLog_(now, user, location, terminalName) {
  * Current presence sheet
  ********************/
 function ensureCurrentPresenceSheet_() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   let sh = ss.getSheetByName(SHEET_CURRENT);
 
   const header = getLogLikeHeader_('updated_at');
@@ -367,16 +390,11 @@ function ensureCurrentPresenceSheet_() {
     sh.getRange(1, 1, 1, header.length).setValues([header]);
     sh.getRange('A:A').setNumberFormat(DATETIME_DISPLAY_FORMAT);
   }
+
+  return sh;
 }
 
-function getCurrentPresenceMap_() {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CURRENT);
-  if (!sh) return new Map();
-
-  const values = sh.getDataRange().getValues();
-  if (values.length <= 1) return new Map();
-
-  const headers = values[0];
+function getCurrentPresenceColumnMap_(headers) {
   const colMap = {
     updated: headers.indexOf('updated_at'),
     user: headers.indexOf('username'),
@@ -388,32 +406,35 @@ function getCurrentPresenceMap_() {
     term: headers.indexOf('terminal')
   };
 
-  const required = [
-    colMap.updated,
-    colMap.user,
-    colMap.nameJa,
-    colMap.nameEn,
-    colMap.locId,
-    colMap.locJa,
-    colMap.locEn,
-    colMap.term
-  ];
-
-  if (required.some(i => i < 0)) {
+  if (Object.values(colMap).some(i => i < 0)) {
     throw new Error('current_presence sheet must contain: updated_at, username, name_ja, name_en, location_id, location_ja, location_en, terminal');
   }
 
-  const map = new Map();
-  const seen = new Set();
+  return colMap;
+}
 
-  values.slice(1).forEach(r => {
+function getCurrentPresenceMap_() {
+  const sh = getSpreadsheet_().getSheetByName(SHEET_CURRENT);
+  if (!sh) return new Map();
+
+  const values = sh.getDataRange().getValues();
+  if (values.length <= 1) {
+    putCurrentPresenceRowIndexCache_(new Map());
+    return new Map();
+  }
+
+  const colMap = getCurrentPresenceColumnMap_(values[0]);
+  const map = new Map();
+  const rowIndex = new Map();
+
+  values.slice(1).forEach((r, idx) => {
     const username = String(r[colMap.user] || '').trim();
     if (!username) return;
 
-    if (seen.has(username)) {
+    if (rowIndex.has(username)) {
       throw new Error(`current_presence: duplicate username: ${username}`);
     }
-    seen.add(username);
+    rowIndex.set(username, idx + 2);
 
     map.set(username, {
       username: username,
@@ -427,6 +448,7 @@ function getCurrentPresenceMap_() {
     });
   });
 
+  putCurrentPresenceRowIndexCache_(rowIndex);
   return map;
 }
 
@@ -454,8 +476,55 @@ function buildPresenceFromCurrent_(users, currentMap, locations) {
   return grouped;
 }
 
+function getCurrentPresenceRowIndexCache_() {
+  const cached = getScriptCache_().get(CURRENT_ROW_INDEX_CACHE_KEY);
+  return cached ? new Map(JSON.parse(cached)) : null;
+}
+
+function putCurrentPresenceRowIndexCache_(rowIndex) {
+  getScriptCache_().put(
+    CURRENT_ROW_INDEX_CACHE_KEY,
+    JSON.stringify(Array.from(rowIndex.entries())),
+    CURRENT_ROW_INDEX_CACHE_TTL_SEC
+  );
+}
+
+function buildCurrentPresenceRowIndex_(sh) {
+  const rowIndex = new Map();
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return rowIndex;
+
+  const usernames = sh.getRange(2, 2, lastRow - 1, 1).getValues();
+  usernames.forEach((row, idx) => {
+    const username = String(row[0] || '').trim();
+    if (username && !rowIndex.has(username)) {
+      rowIndex.set(username, idx + 2);
+    }
+  });
+
+  return rowIndex;
+}
+
+function findCurrentPresenceRow_(sh, username) {
+  const cached = getCurrentPresenceRowIndexCache_();
+
+  if (cached) {
+    const cachedRow = cached.get(username);
+    if (cachedRow) {
+      const currentUsername = String(sh.getRange(cachedRow, 2).getValue() || '').trim();
+      if (currentUsername === username) {
+        return { rowIndex: cached, row: cachedRow };
+      }
+    }
+  }
+
+  const rowIndex = buildCurrentPresenceRowIndex_(sh);
+  putCurrentPresenceRowIndexCache_(rowIndex);
+  return { rowIndex: rowIndex, row: rowIndex.get(username) || null };
+}
+
 function upsertCurrentPresenceFast_(now, user, location, terminalName) {
-  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_CURRENT);
+  const sh = ensureCurrentPresenceSheet_();
   const rowValues = [
     now,
     user.username,
@@ -467,62 +536,71 @@ function upsertCurrentPresenceFast_(now, user, location, terminalName) {
     terminalName
   ];
 
-  const lastRow = sh.getLastRow();
+  const found = findCurrentPresenceRow_(sh, user.username);
 
-  if (lastRow >= 2) {
-    const usernames = sh.getRange(2, 2, lastRow - 1, 1).getValues().flat();
-    const idx = usernames.findIndex(v => String(v || '').trim() === user.username);
-
-    if (idx !== -1) {
-      sh.getRange(idx + 2, 1, 1, rowValues.length).setValues([rowValues]);
-      return;
-    }
+  if (found.row) {
+    sh.getRange(found.row, 1, 1, rowValues.length).setValues([rowValues]);
+    return;
   }
 
-  const nextRow = lastRow + 1;
+  const nextRow = sh.getLastRow() + 1;
   sh.getRange(nextRow, 1, 1, rowValues.length).setValues([rowValues]);
+
+  found.rowIndex.set(user.username, nextRow);
+  putCurrentPresenceRowIndexCache_(found.rowIndex);
 }
 
 /********************
  * Presence snapshot cache
  ********************/
 function getPresenceSnapshotCache_() {
-  const cached = CacheService.getScriptCache().get(PRESENCE_SNAPSHOT_CACHE_KEY);
+  const cached = getScriptCache_().get(PRESENCE_SNAPSHOT_CACHE_KEY);
   return cached ? JSON.parse(cached) : null;
 }
 
 function putPresenceSnapshotCache_(presence) {
-  CacheService.getScriptCache().put(
+  getScriptCache_().put(
     PRESENCE_SNAPSHOT_CACHE_KEY,
     JSON.stringify(presence || []),
     PRESENCE_SNAPSHOT_TTL_SEC
   );
 }
 
-function updatePresenceSnapshotCache_(users, locations, saved) {
+function dedupeMembersByUsername_(members) {
+  const seen = new Set();
+  return members.filter(member => {
+    if (seen.has(member.username)) return false;
+    seen.add(member.username);
+    return true;
+  });
+}
+
+function updatePresenceSnapshotCache_(users, locations, savedUser, savedLocationId) {
   const presence =
     getPresenceSnapshotCache_() ||
     buildPresenceFromCurrent_(users, getCurrentPresenceMap_(), locations);
 
-  const userOrder = new Map(users.map((u, idx) => [u.username, idx]));
-  const user = users.find(u => u.username === saved.username);
-  if (!user) return presence;
+  const groupsByLocation = new Map(presence.map(group => [group.locationId, group]));
+  const userOrder = new Map(users.map((user, idx) => [user.username, idx]));
 
   const nextPresence = locations.map(locationDef => {
-    const existingGroup = presence.find(g => g.locationId === locationDef.id);
-    const members = (existingGroup?.members || []).filter(m => m.username !== saved.username);
+    const existingGroup = groupsByLocation.get(locationDef.id);
+    const members = (existingGroup?.members || [])
+      .filter(member => member.username !== savedUser.username);
 
-    if (saved.locationId === locationDef.id) {
+    if (savedLocationId === locationDef.id) {
       members.push({
-        username: user.username,
-        nameJa: user.nameJa,
-        nameEn: user.nameEn
+        username: savedUser.username,
+        nameJa: savedUser.nameJa,
+        nameEn: savedUser.nameEn
       });
     }
 
-    const seen = new Set();
-    const deduped = members.filter(m => (seen.has(m.username) ? false : seen.add(m.username)));
-    deduped.sort((a, b) => (userOrder.get(a.username) ?? 999999) - (userOrder.get(b.username) ?? 999999));
+    const deduped = dedupeMembersByUsername_(members);
+    deduped.sort((a, b) =>
+      (userOrder.get(a.username) ?? 999999) -
+      (userOrder.get(b.username) ?? 999999)
+    );
 
     return {
       locationId: locationDef.id,
@@ -539,12 +617,123 @@ function updatePresenceSnapshotCache_(users, locations, saved) {
 /********************
  * Maintenance utilities
  ********************/
+function clearUserDependentCaches_() {
+  getScriptCache_().removeAll([
+    USERS_CACHE_KEY,
+    PRESENCE_SNAPSHOT_CACHE_KEY,
+    CURRENT_ROW_INDEX_CACHE_KEY
+  ]);
+}
+
 function clearCaches_() {
-  CacheService.getScriptCache().removeAll([
+  getScriptCache_().removeAll([
     USERS_CACHE_KEY,
     LOCATIONS_CACHE_KEY,
-    PRESENCE_SNAPSHOT_CACHE_KEY
+    PRESENCE_SNAPSHOT_CACHE_KEY,
+    CURRENT_ROW_INDEX_CACHE_KEY
   ]);
+}
+
+function syncCurrentPresenceWithUsers_() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(MAINTENANCE_LOCK_TRY_TIMEOUT_MS)) {
+    throw new Error('Could not synchronize current_presence because another save operation is still in progress.');
+  }
+
+  try {
+    clearUserDependentCaches_();
+
+    const users = getUsers_();
+    const usersByUsername = new Map(users.map(user => [user.username, user]));
+    const sh = ensureCurrentPresenceSheet_();
+    const values = sh.getDataRange().getValues();
+
+    if (values.length <= 1) {
+      putCurrentPresenceRowIndexCache_(new Map());
+      return { removed: 0, renamed: 0 };
+    }
+
+    const colMap = getCurrentPresenceColumnMap_(values[0]);
+    const nextRows = [];
+    const seen = new Set();
+    let removed = 0;
+    let renamed = 0;
+
+    values.slice(1).forEach(row => {
+      const username = String(row[colMap.user] || '').trim();
+      if (!username) {
+        removed += 1;
+        return;
+      }
+      if (seen.has(username)) {
+        throw new Error(`current_presence: duplicate username: ${username}`);
+      }
+      seen.add(username);
+
+      const user = usersByUsername.get(username);
+      if (!user) {
+        removed += 1;
+        return;
+      }
+
+      const nextRow = row.slice();
+      const currentNameJa = String(nextRow[colMap.nameJa] || '').trim();
+      const currentNameEn = String(nextRow[colMap.nameEn] || '').trim();
+
+      if (currentNameJa !== user.nameJa || currentNameEn !== user.nameEn) {
+        nextRow[colMap.nameJa] = user.nameJa;
+        nextRow[colMap.nameEn] = user.nameEn;
+        renamed += 1;
+      }
+
+      nextRows.push(nextRow);
+    });
+
+    if (removed > 0 || renamed > 0) {
+      const bodyRange = sh.getRange(2, 1, values.length - 1, values[0].length);
+      bodyRange.clearContent();
+
+      if (nextRows.length > 0) {
+        sh.getRange(2, 1, nextRows.length, nextRows[0].length).setValues(nextRows);
+      }
+    }
+
+    const rowIndex = new Map(nextRows.map((row, idx) => [
+      String(row[colMap.user] || '').trim(),
+      idx + 2
+    ]));
+    putCurrentPresenceRowIndexCache_(rowIndex);
+    getScriptCache_().remove(PRESENCE_SNAPSHOT_CACHE_KEY);
+
+    return { removed: removed, renamed: renamed };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function syncCurrentPresenceWithUsersAndNotify_() {
+  const ui = SpreadsheetApp.getUi();
+
+  try {
+    const result = syncCurrentPresenceWithUsers_();
+    ui.alert(
+      '完了 / Complete',
+      `current_presence を users と同期しました。\n` +
+      `削除 / Removed: ${result.removed}\n` +
+      `表示名更新 / Renamed: ${result.renamed}\n\n` +
+      'logs_ シートは変更していません。\n' +
+      'logs_ sheets were not modified.',
+      ui.ButtonSet.OK
+    );
+  } catch (err) {
+    ui.alert(
+      'Error',
+      'current_presence の同期に失敗しました。\n' +
+      'Failed to synchronize current_presence.\n\n' +
+      String(err),
+      ui.ButtonSet.OK
+    );
+  }
 }
 
 function clearCachesAndNotify_() {
@@ -582,7 +771,7 @@ function rebuildCurrentPresenceFromLogs() {
 
   const users = getUsers_();
   const userMap = new Map(users.map(u => [u.username, u]));
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = getSpreadsheet_();
   const currentSh = ss.getSheetByName(SHEET_CURRENT);
 
   const targetSheetNames = new Set(getRecentMonthlyLogSheetNames_(new Date(), 2));
@@ -665,18 +854,6 @@ function validateTerminalName_(v) {
 }
 
 /********************
- * Cache invalidation
- ********************/
-function onEdit(e) {
-  if (!e || !e.range) return;
-
-  const sheetName = e.range.getSheet().getName();
-  if ([SHEET_USERS, SHEET_LOCATIONS, SHEET_CURRENT].includes(sheetName)) {
-    clearCaches_();
-  }
-}
-
-/********************
  * Night presence notification
  ********************/
 function checkAndNotifyPresence() {
@@ -694,14 +871,22 @@ function checkAndNotifyPresence() {
       .filter(Boolean)
   );
 
+  const usersByUsername = new Map(
+    getUsersFresh_().map(user => [user.username, user])
+  );
   const currentMap = getCurrentPresenceMap_();
   if (!currentMap || currentMap.size === 0) return;
 
   const remainingUsers = [];
   currentMap.forEach(data => {
-    if (!awayIdSet.has(data.locationId)) {
-      remainingUsers.push(data);
-    }
+    const user = usersByUsername.get(data.username);
+    if (!user || awayIdSet.has(data.locationId)) return;
+
+    remainingUsers.push({
+      ...data,
+      nameJa: user.nameJa,
+      nameEn: user.nameEn
+    });
   });
 
   if (remainingUsers.length === 0) return;
@@ -735,8 +920,9 @@ function onOpen() {
     .addItem('自動通知タイマーを設定する / Set Notification Timer', 'setupNotificationTrigger_')
     .addItem('自動通知タイマーを解除する / Cancel Notification Timer', 'deleteNotificationTrigger_')
     .addSeparator()
-    .addItem('キャッシュをクリア / Clear Cache', 'clearCachesAndNotify_')
-    .addItem('current_presence を再構築 / Rebuild current_presence', 'rebuildCurrentPresenceFromLogsAndNotify_')
+    .addItem('【locations 変更後】キャッシュをクリア / After editing locations: Clear cache', 'clearCachesAndNotify_')
+    .addItem('【users 変更後】current_presence を同期 / After editing users: Sync current_presence', 'syncCurrentPresenceWithUsersAndNotify_')
+    .addItem('【復旧用】current_presence を再構築 / Recovery only: Rebuild current_presence', 'rebuildCurrentPresenceFromLogsAndNotify_')
     .addSeparator()
     .addItem('📱 アプリURLの取得手順 / How to get URL', 'showUrlInstructions_')
     .addToUi();
