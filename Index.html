@@ -41,6 +41,7 @@
       --name-chip-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
       --name-chip-font-weight: 400;
       --presence-pop-gutter: 12px;
+      --saving-location-reveal-duration: 400ms;
 
       /* result card colors — JS がベタ書きの色値を持たないよう CSS 変数で定義 */
       --result-ok-text: #ffffff;
@@ -659,7 +660,9 @@
       color: var(--text);
       opacity: 1;
       transform: translateY(0);
-      transition: opacity 400ms ease, transform 400ms cubic-bezier(0.22, 0.8, 0.2, 1);
+      transition:
+        opacity var(--saving-location-reveal-duration) ease,
+        transform var(--saving-location-reveal-duration) cubic-bezier(0.22, 0.8, 0.2, 1);
     }
 
     .savingPresenceLocation.is-pending {
@@ -1278,6 +1281,18 @@
       }
     };
 
+    const SOFT_GHOST_OPACITY = {
+      start: 0.28,
+      peak: 0.82,
+      peakOffset: 0.25
+    };
+
+    const GHOST_COLOR_TIMING = {
+      holdOffset: 0.20,
+      completeOffset: 0.80
+    };
+
+    const SOUND_VOLUME = 0.8;
     const SAVE_TIMEOUT_MS = 15000;
     const PRESENCE_FONT_LEVEL_KEY = 'presenceFontLevel';
     const PRESENCE_FONT_MIN = 1;
@@ -1322,7 +1337,7 @@
     let isPresenceFetchRunning = false;
     let presenceFetchVersion = 0;
 
-    let syncQueue = [];
+    const syncQueue = [];
     let isQueueProcessing = false;
     let isQueuePaused = false;
     let isUiLocked = false;
@@ -1343,6 +1358,13 @@
     let cachedUserLocationColorMap = null;
 
     const els = {};
+
+    function applyAnimationCssVariables() {
+      document.documentElement.style.setProperty(
+        '--saving-location-reveal-duration',
+        `${CHIP_ANIMATION.flight.durationMs}ms`
+      );
+    }
 
     function initDOM() {
       els.title                    = document.getElementById('title');
@@ -1693,7 +1715,7 @@
         osc.frequency.value = 880;
 
         gain.gain.setValueAtTime(0.0001, tapAudioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.8,    tapAudioCtx.currentTime + 0.005);
+        gain.gain.exponentialRampToValueAtTime(SOUND_VOLUME, tapAudioCtx.currentTime + 0.005);
         gain.gain.exponentialRampToValueAtTime(0.0001, tapAudioCtx.currentTime + 0.05);
 
         osc.connect(gain);
@@ -1704,7 +1726,7 @@
       } catch (_) {}
     }
 
-    function playToneSequence(notes, volume = 0.22) {
+    function playToneSequence(notes, volume = SOUND_VOLUME) {
       try {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         if (!AudioContextClass) return;
@@ -1746,14 +1768,14 @@
       playToneSequence([
         { frequency: 523.25, duration: 0.13, gap: 0.035 },
         { frequency: 783.99, duration: 0.18 }
-      ], 0.8);
+      ]);
     }
 
     function playSaveErrorSound() {
       playToneSequence([
         { frequency: 220.00, duration: 0.12, gap: 0.055 },
         { frequency: 196.00, duration: 0.15 }
-      ], 0.8);
+      ]);
     }
 
     function attachPressFeedback(btn) {
@@ -2081,9 +2103,9 @@
       const keyframes = startBackground !== endBackground
         ? [
             { transform: startTransform, opacity: startOpacity, background: startBackground, offset: 0 },
-            { background: startBackground, offset: 0.20 },
+            { background: startBackground, offset: GHOST_COLOR_TIMING.holdOffset },
             ...(peakOpacity != null ? [{ opacity: peakOpacity, offset: peakOffset }] : []),
-            { background: endBackground,   offset: 0.80 },
+            { background: endBackground,   offset: GHOST_COLOR_TIMING.completeOffset },
             { transform: endTransform, opacity: endOpacity, background: endBackground, offset: 1 }
           ]
         : [
@@ -2240,6 +2262,46 @@
       return true;
     }
 
+    function buildDestinationGhostOptions({
+      html,
+      metrics,
+      fromRect,
+      toRect,
+      startBackground,
+      endBackground,
+      startScaleX = fromRect.width / toRect.width,
+      startScaleY = fromRect.height / toRect.height,
+      startOpacity,
+      peakOpacity,
+      peakOpacityOffset
+    }) {
+      const options = {
+        html,
+        startBackground,
+        endBackground,
+        fontSizePx: metrics.fontSizePx,
+        fontWeight: 400,
+        paddingY: metrics.paddingY,
+        paddingX: metrics.paddingX,
+        baseWidth: toRect.width,
+        baseHeight: toRect.height,
+        startScaleX,
+        startScaleY,
+        endScaleX: 1,
+        endScaleY: 1
+      };
+
+      if (Number.isFinite(startOpacity)) options.startOpacity = startOpacity;
+      if (Number.isFinite(peakOpacity)) {
+        options.peakOpacity = peakOpacity;
+        if (Number.isFinite(peakOpacityOffset)) {
+          options.peakOpacityOffset = peakOpacityOffset;
+        }
+      }
+
+      return options;
+    }
+
     function animateSelectedUserChip() {
       if (!lastSelectedUserButtonRect || !els.selectedUserChip) return;
 
@@ -2259,25 +2321,19 @@
       const launched = launchGhostWithLandingPop({
         fromRect: lastSelectedUserButtonRect,
         toRect:   targetRect,
-        ghostOptions: {
+        ghostOptions: buildDestinationGhostOptions({
           html,
-          background: bg,
+          metrics: selectedMetrics,
+          fromRect: lastSelectedUserButtonRect,
+          toRect: targetRect,
           startBackground: sourceBg,
           endBackground: bg,
-          startOpacity: 0.28,
-          peakOpacity: 0.82,
-          peakOpacityOffset: 0.25,
-          fontSizePx: selectedMetrics.fontSizePx,
-          fontWeight: 400,
-          paddingY:   selectedMetrics.paddingY,
-          paddingX:   selectedMetrics.paddingX,
-          baseWidth:  targetRect.width,
-          baseHeight: targetRect.height,
           startScaleX: startScale,
           startScaleY: startScale,
-          endScaleX: 1,
-          endScaleY: 1
-        },
+          startOpacity: SOFT_GHOST_OPACITY.start,
+          peakOpacity: SOFT_GHOST_OPACITY.peak,
+          peakOpacityOffset: SOFT_GHOST_OPACITY.peakOffset
+        }),
         targetEl: els.selectedUserChip
       });
 
@@ -2297,22 +2353,14 @@
       const launched = launchGhostWithLandingPop({
         fromRect: task.originChipRect,
         toRect,
-        ghostOptions: {
-          html:       task.originChipHtml,
-          background: task.color || task.originChipBackground,
+        ghostOptions: buildDestinationGhostOptions({
+          html: task.originChipHtml,
+          metrics: m,
+          fromRect: task.originChipRect,
+          toRect,
           startBackground: task.originChipBackground || task.color || getDefaultAccentColor(),
-          endBackground: task.color || task.originChipBackground || getDefaultAccentColor(),
-          fontSizePx: m.fontSizePx,
-          fontWeight: 400,
-          paddingY:   m.paddingY,
-          paddingX:   m.paddingX,
-          baseWidth:  toRect.width,
-          baseHeight: toRect.height,
-          startScaleX: task.originChipRect.width  / toRect.width,
-          startScaleY: task.originChipRect.height / toRect.height,
-          endScaleX: 1,
-          endScaleY: 1
-        },
+          endBackground: task.color || task.originChipBackground || getDefaultAccentColor()
+        }),
         sourceEl: els.selectedUserChip,
         targetEl: els.savingPresenceChip
       });
@@ -2385,26 +2433,17 @@
       const launched = launchGhostWithLandingPop({
         fromRect,
         toRect,
-        ghostOptions: {
-          html:       targetChip.innerHTML,
-          background: destinationColor,
+        ghostOptions: buildDestinationGhostOptions({
+          html: targetChip.innerHTML,
+          metrics: targetMetrics,
+          fromRect,
+          toRect,
           startBackground: sourceColor,
           endBackground: destinationColor,
-          startOpacity: sourceSnapshot ? 0.28 : CHIP_ANIMATION.flight.startOpacity,
-          peakOpacity: sourceSnapshot ? 0.82 : null,
-          peakOpacityOffset: 0.25,
-          fontSizePx: targetMetrics.fontSizePx,
-          fontWeight: 400,
-          paddingY:   targetMetrics.paddingY,
-          paddingX:   targetMetrics.paddingX,
-          baseWidth:  toRect.width,
-          baseHeight: toRect.height,
-          startScaleX: fromRect.width  / toRect.width,
-          startScaleY: fromRect.height / toRect.height,
-          endScaleX: 1,
-          endScaleY: 1
-        },
-        sourceEl: task.previousPresenceChipSnapshot ? null : els.savingPresenceChip,
+          startOpacity: sourceSnapshot ? SOFT_GHOST_OPACITY.start : null,
+          peakOpacity: sourceSnapshot ? SOFT_GHOST_OPACITY.peak : null,
+          peakOpacityOffset: SOFT_GHOST_OPACITY.peakOffset
+        }),
         targetEl: targetChip,
         clearSourceAnimation: false
       });
@@ -2964,6 +3003,29 @@
       scheduleReset(10000);
     }
 
+    function createDeferred() {
+      let resolve = () => {};
+      const promise = new Promise(done => {
+        resolve = done;
+      });
+      return { promise, resolve };
+    }
+
+    function createSaveTask(user, location, presenceScrollPromise) {
+      return {
+        username: user.username,
+        nameJa: user.nameJa,
+        nameEn: user.nameEn,
+        locationId: location.id,
+        locationJa: location.ja,
+        locationEn: location.en,
+        icon: location.icon,
+        color: location.color,
+        presenceScrollPromise,
+        cancelPresenceScroll: false
+      };
+    }
+
     function submitLocation(location) {
       if (isUiLocked || !selectedUser || !location) return;
       clearResetTimer();
@@ -2990,10 +3052,8 @@
       });
       const preparedSavingChipLanding = prepareGhostLandingTarget(els.savingPresenceChip);
 
-      let resolvePresenceScrollReady = () => {};
-      const presenceScrollPromise = new Promise(resolve => {
-        resolvePresenceScrollReady = resolve;
-      });
+      const presenceScrollReady = createDeferred();
+      const queuedTask = createSaveTask(selectedUser, location, presenceScrollReady.promise);
 
       scheduleAnimationStart(() => {
         const launched = animateResultCardArrival({
@@ -3009,32 +3069,19 @@
 
         waitForGhostArrivalCompletion(launched).then(() => {
           if (queuedTask.cancelPresenceScroll) {
-            resolvePresenceScrollReady();
+            presenceScrollReady.resolve();
             return;
           }
           scrollPresencePanelForSave(queuedTask).then(() => {
             if (!queuedTask.cancelPresenceScroll) {
               showSyncIndicator(queuedTask);
             }
-            resolvePresenceScrollReady();
+            presenceScrollReady.resolve();
           });
         });
       });
 
       setSelectedUserChipHidden(true);
-
-      const queuedTask = {
-        username:   selectedUser.username,
-        nameJa:     selectedUser.nameJa,
-        nameEn:     selectedUser.nameEn,
-        locationId: location.id,
-        locationJa: location.ja,
-        locationEn: location.en,
-        icon:       location.icon,
-        color:      location.color,
-        presenceScrollPromise,
-        cancelPresenceScroll: false
-      };
 
       syncQueue.push(queuedTask);
       processQueue();
@@ -3178,6 +3225,7 @@
 
     window.addEventListener('load', () => {
       initDOM();
+      applyAnimationCssVariables();
       bindStaticPressFeedback();
       bindStaticControlEvents();
 
