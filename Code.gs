@@ -9,12 +9,10 @@ const LOG_SHEET_PREFIX = 'logs_';
 const USERS_CACHE_KEY = 'users_v1';
 const LOCATIONS_CACHE_KEY = 'locations_v2';
 const PRESENCE_SNAPSHOT_CACHE_KEY = 'presence_snapshot_v1';
-const CURRENT_ROW_INDEX_CACHE_KEY = 'current_presence_row_index_v1';
 
 const USERS_CACHE_TTL_SEC = 21600;             // 6 hours
 const LOCATIONS_CACHE_TTL_SEC = 21600;         // 6 hours
 const PRESENCE_SNAPSHOT_TTL_SEC = 21600;       // 6 hours
-const CURRENT_ROW_INDEX_CACHE_TTL_SEC = 21600; // 6 hours
 
 const DATETIME_DISPLAY_FORMAT = 'yyyy/MM/dd HH:mm:ss';
 
@@ -418,23 +416,18 @@ function getCurrentPresenceMap_() {
   if (!sh) return new Map();
 
   const values = sh.getDataRange().getValues();
-  if (values.length <= 1) {
-    putCurrentPresenceRowIndexCache_(new Map());
-    return new Map();
-  }
+  if (values.length <= 1) return new Map();
 
   const colMap = getCurrentPresenceColumnMap_(values[0]);
   const map = new Map();
-  const rowIndex = new Map();
 
-  values.slice(1).forEach((r, idx) => {
+  values.slice(1).forEach(r => {
     const username = String(r[colMap.user] || '').trim();
     if (!username) return;
 
-    if (rowIndex.has(username)) {
+    if (map.has(username)) {
       throw new Error(`current_presence: duplicate username: ${username}`);
     }
-    rowIndex.set(username, idx + 2);
 
     map.set(username, {
       username: username,
@@ -448,7 +441,6 @@ function getCurrentPresenceMap_() {
     });
   });
 
-  putCurrentPresenceRowIndexCache_(rowIndex);
   return map;
 }
 
@@ -476,78 +468,77 @@ function buildPresenceFromCurrent_(users, currentMap, locations) {
   return grouped;
 }
 
-function getCurrentPresenceRowIndexCache_() {
-  const cached = getScriptCache_().get(CURRENT_ROW_INDEX_CACHE_KEY);
-  return cached ? new Map(JSON.parse(cached)) : null;
-}
-
-function putCurrentPresenceRowIndexCache_(rowIndex) {
-  getScriptCache_().put(
-    CURRENT_ROW_INDEX_CACHE_KEY,
-    JSON.stringify(Array.from(rowIndex.entries())),
-    CURRENT_ROW_INDEX_CACHE_TTL_SEC
-  );
-}
-
-function buildCurrentPresenceRowIndex_(sh) {
-  const rowIndex = new Map();
+function findCurrentPresenceRow_(sh, username, usernameColumn) {
   const lastRow = sh.getLastRow();
-  if (lastRow < 2) return rowIndex;
+  if (lastRow < 2) return null;
 
-  const usernames = sh.getRange(2, 2, lastRow - 1, 1).getValues();
+  const usernames = sh.getRange(2, usernameColumn, lastRow - 1, 1).getValues();
+  let foundRow = null;
+  const seen = new Set();
+
   usernames.forEach((row, idx) => {
-    const username = String(row[0] || '').trim();
-    if (username && !rowIndex.has(username)) {
-      rowIndex.set(username, idx + 2);
+    const currentUsername = String(row[0] || '').trim();
+    if (!currentUsername) return;
+
+    if (seen.has(currentUsername)) {
+      throw new Error(`current_presence: duplicate username: ${currentUsername}`);
+    }
+    seen.add(currentUsername);
+
+    if (currentUsername === username) {
+      foundRow = idx + 2;
     }
   });
 
-  return rowIndex;
+  return foundRow;
 }
 
-function findCurrentPresenceRow_(sh, username) {
-  const cached = getCurrentPresenceRowIndexCache_();
+function buildCurrentPresenceRowValues_(headers, existingRow, now, user, location, terminalName) {
+  const colMap = getCurrentPresenceColumnMap_(headers);
+  const rowValues = existingRow ? existingRow.slice() : new Array(headers.length).fill('');
 
-  if (cached) {
-    const cachedRow = cached.get(username);
-    if (cachedRow) {
-      const currentUsername = String(sh.getRange(cachedRow, 2).getValue() || '').trim();
-      if (currentUsername === username) {
-        return { rowIndex: cached, row: cachedRow };
-      }
-    }
-  }
+  rowValues[colMap.updated] = now;
+  rowValues[colMap.user] = user.username;
+  rowValues[colMap.nameJa] = user.nameJa;
+  rowValues[colMap.nameEn] = user.nameEn;
+  rowValues[colMap.locId] = location.id;
+  rowValues[colMap.locJa] = location.ja;
+  rowValues[colMap.locEn] = location.en;
+  rowValues[colMap.term] = terminalName;
 
-  const rowIndex = buildCurrentPresenceRowIndex_(sh);
-  putCurrentPresenceRowIndexCache_(rowIndex);
-  return { rowIndex: rowIndex, row: rowIndex.get(username) || null };
+  return rowValues;
 }
 
 function upsertCurrentPresenceFast_(now, user, location, terminalName) {
   const sh = ensureCurrentPresenceSheet_();
-  const rowValues = [
-    now,
-    user.username,
-    user.nameJa,
-    user.nameEn,
-    location.id,
-    location.ja,
-    location.en,
-    terminalName
-  ];
+  const lastColumn = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, lastColumn).getValues()[0];
+  const colMap = getCurrentPresenceColumnMap_(headers);
+  const row = findCurrentPresenceRow_(sh, user.username, colMap.user + 1);
 
-  const found = findCurrentPresenceRow_(sh, user.username);
-
-  if (found.row) {
-    sh.getRange(found.row, 1, 1, rowValues.length).setValues([rowValues]);
+  if (row) {
+    const existingRow = sh.getRange(row, 1, 1, lastColumn).getValues()[0];
+    const rowValues = buildCurrentPresenceRowValues_(
+      headers,
+      existingRow,
+      now,
+      user,
+      location,
+      terminalName
+    );
+    sh.getRange(row, 1, 1, lastColumn).setValues([rowValues]);
     return;
   }
 
-  const nextRow = sh.getLastRow() + 1;
-  sh.getRange(nextRow, 1, 1, rowValues.length).setValues([rowValues]);
-
-  found.rowIndex.set(user.username, nextRow);
-  putCurrentPresenceRowIndexCache_(found.rowIndex);
+  const rowValues = buildCurrentPresenceRowValues_(
+    headers,
+    null,
+    now,
+    user,
+    location,
+    terminalName
+  );
+  sh.getRange(sh.getLastRow() + 1, 1, 1, lastColumn).setValues([rowValues]);
 }
 
 /********************
@@ -620,8 +611,7 @@ function updatePresenceSnapshotCache_(users, locations, savedUser, savedLocation
 function clearUserDependentCaches_() {
   getScriptCache_().removeAll([
     USERS_CACHE_KEY,
-    PRESENCE_SNAPSHOT_CACHE_KEY,
-    CURRENT_ROW_INDEX_CACHE_KEY
+    PRESENCE_SNAPSHOT_CACHE_KEY
   ]);
 }
 
@@ -629,8 +619,7 @@ function clearCaches_() {
   getScriptCache_().removeAll([
     USERS_CACHE_KEY,
     LOCATIONS_CACHE_KEY,
-    PRESENCE_SNAPSHOT_CACHE_KEY,
-    CURRENT_ROW_INDEX_CACHE_KEY
+    PRESENCE_SNAPSHOT_CACHE_KEY
   ]);
 }
 
@@ -649,7 +638,6 @@ function syncCurrentPresenceWithUsers_() {
     const values = sh.getDataRange().getValues();
 
     if (values.length <= 1) {
-      putCurrentPresenceRowIndexCache_(new Map());
       return { removed: 0, renamed: 0 };
     }
 
@@ -698,11 +686,6 @@ function syncCurrentPresenceWithUsers_() {
       }
     }
 
-    const rowIndex = new Map(nextRows.map((row, idx) => [
-      String(row[colMap.user] || '').trim(),
-      idx + 2
-    ]));
-    putCurrentPresenceRowIndexCache_(rowIndex);
     getScriptCache_().remove(PRESENCE_SNAPSHOT_CACHE_KEY);
 
     return { removed: removed, renamed: renamed };
@@ -854,6 +837,18 @@ function validateTerminalName_(v) {
 }
 
 /********************
+ * Cache invalidation
+ ********************/
+function onEdit(e) {
+  if (!e || !e.range) return;
+
+  const sheetName = e.range.getSheet().getName();
+  if ([SHEET_USERS, SHEET_LOCATIONS, SHEET_CURRENT].includes(sheetName)) {
+    clearCaches_();
+  }
+}
+
+/********************
  * Night presence notification
  ********************/
 function checkAndNotifyPresence() {
@@ -916,15 +911,15 @@ function checkAndNotifyPresence() {
  ********************/
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('⚙️ Admin Menu')
-    .addItem('自動通知タイマーを設定する / Set Notification Timer', 'setupNotificationTrigger_')
-    .addItem('自動通知タイマーを解除する / Cancel Notification Timer', 'deleteNotificationTrigger_')
+    .createMenu('⚙️ 管理 / Admin')
+    .addItem('通知を設定 / Set notify', 'setupNotificationTrigger_')
+    .addItem('通知を解除 / Cancel notify', 'deleteNotificationTrigger_')
     .addSeparator()
-    .addItem('【locations 変更後】キャッシュをクリア / After editing locations: Clear cache', 'clearCachesAndNotify_')
-    .addItem('【users 変更後】current_presence を同期 / After editing users: Sync current_presence', 'syncCurrentPresenceWithUsersAndNotify_')
-    .addItem('【復旧用】current_presence を再構築 / Recovery only: Rebuild current_presence', 'rebuildCurrentPresenceFromLogsAndNotify_')
+    .addItem('users変更を反映 / Sync users', 'syncCurrentPresenceWithUsersAndNotify_')
+    .addItem('キャッシュクリア / Clear cache', 'clearCachesAndNotify_')
+    .addItem('ログから復旧 / Restore from logs', 'rebuildCurrentPresenceFromLogsAndNotify_')
     .addSeparator()
-    .addItem('📱 アプリURLの取得手順 / How to get URL', 'showUrlInstructions_')
+    .addItem('📱 URL手順 / URL help', 'showUrlInstructions_')
     .addToUi();
 }
 
