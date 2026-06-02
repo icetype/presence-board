@@ -2178,23 +2178,42 @@
              Math.abs(a.height - b.height) < 4;
     }
 
+    function getSamePlaceBounceOffsets(targetEl) {
+      const fontSize = targetEl
+        ? parseFloat(getComputedStyle(targetEl).fontSize)
+        : 17;
+      const scale = Math.max(0.75, Math.min(1.45, (Number.isFinite(fontSize) ? fontSize : 17) / 17));
+
+      return {
+        xSmall:  Math.round(1 * scale),
+        xLarge:  Math.round(2 * scale),
+        yPeak:   Math.round(9 * scale),
+        yDip:    Math.round(4 * scale),
+        yReturn: Math.round(5 * scale),
+        ySettle: Math.round(2 * scale)
+      };
+    }
+
     function playChipSamePlaceBounce(targetEl) {
       if (!targetEl) return null;
 
       stopElementAnimations(targetEl);
+      const offsets = getSamePlaceBounceOffsets(targetEl);
 
       const anim = startElementAnimation(
         targetEl,
         [
           { transform: 'translate(0, 0)' },
-          { transform: 'translate(-2px, -9px)', offset: 0.22 },
-          { transform: 'translate(2px, 4px)', offset: 0.45 },
-          { transform: 'translate(-1px, -5px)', offset: 0.66 },
-          { transform: 'translate(1px, 2px)', offset: 0.84 },
+          { transform: 'translate(0, 0)', offset: 0.12 },
+          { transform: `translate(-${offsets.xLarge}px, -${offsets.yPeak}px)`, offset: 0.34 },
+          { transform: `translate(${offsets.xLarge}px, ${offsets.yDip}px)`, offset: 0.55 },
+          { transform: `translate(-${offsets.xSmall}px, -${offsets.yReturn}px)`, offset: 0.74 },
+          { transform: `translate(${offsets.xSmall}px, ${offsets.ySettle}px)`, offset: 0.90 },
           { transform: 'translate(0, 0)' }
         ],
         {
           duration: 620,
+          delay:    80,
           easing:   'cubic-bezier(0.2, 0.8, 0.2, 1)',
           fill:     'both'
         },
